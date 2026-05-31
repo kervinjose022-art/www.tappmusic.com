@@ -1,0 +1,6 @@
+{
+  "name": "tappmusic Console",
+  "description": "Consola de administración para simulación de ganancias VIP, cálculo de misiones y configuración de calendarios de retiro cada 10 días.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
