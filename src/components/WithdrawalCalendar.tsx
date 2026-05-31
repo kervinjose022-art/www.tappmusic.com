@@ -354,6 +354,60 @@ export function WithdrawalCalendar({ config, onUpdate }: WithdrawalCalendarProps
           )}
         </div>
 
+        {/* Live Simulator for Users */}
+        <div className="bg-slate-950/70 p-4 rounded-xl border border-emerald-500/20 space-y-3 relative overflow-hidden" id="user-preview-widget-card">
+          <div className="absolute top-0 right-0 bg-emerald-500/10 text-emerald-400 font-mono text-[8px] font-bold px-2 py-0.5 rounded-bl border-l border-b border-emerald-500/20 uppercase tracking-wider">
+            PREVISTA DEL USUARIO (tappmusica)
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <div className="bg-emerald-500/15 p-1.5 rounded-lg border border-emerald-500/20">
+              <Clock className="h-4 w-4 text-emerald-400" />
+            </div>
+            <div>
+              <span className="text-[9px] font-mono font-bold text-slate-500 uppercase block leading-none">Cuenta Regresiva Activa</span>
+              <span className="text-xs font-semibold text-white">¿Cuántos días le faltan a tus usuarios para retirar?</span>
+            </div>
+          </div>
+
+          <div className="bg-slate-900/60 p-3.5 rounded-xl border border-white/5 text-center space-y-2">
+            <div className={`inline-block text-[9px] font-bold px-2.5 py-0.5 rounded-full uppercase font-mono tracking-wide ${
+              withdrawalAllowedToday 
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                : 'bg-amber-500/20 text-amber-400 border border-amber-400/30'
+            }`}>
+              {withdrawalAllowedToday ? '¡RETIROS HABILITADOS HOY!' : 'SISTEMA CON CANDADO TEMPORAL'}
+            </div>
+            
+            <div className="text-2xl font-bold text-white tracking-tight">
+              {withdrawalAllowedToday ? (
+                <span className="text-emerald-400">00 <span className="text-xs text-slate-400 font-mono font-normal">DÍAS</span></span>
+              ) : (
+                <span className="text-amber-400">{diffDays} <span className="text-xs text-slate-400 font-mono font-normal">{diffDays === 1 ? 'DÍA RESTANTE' : 'DÍAS RESTANTES'}</span></span>
+              )}
+            </div>
+
+            <p className="text-[11px] text-slate-300 max-w-sm mx-auto leading-relaxed">
+              {withdrawalAllowedToday ? (
+                '¡Felicidades! La compuerta de retiros se encuentra habilitada hoy. Los usuarios pueden solicitar sus comisiones directamente.'
+              ) : (
+                <>
+                  No es un día de retiro permitido hoy. Podrán retirar el <strong className="text-white">{nextWithdrawalDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</strong> ({diffDays} {diffDays === 1 ? 'día' : 'días'} más).
+                </>
+              )}
+            </p>
+          </div>
+          
+          <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 px-1 pt-0.5">
+            <span>Regla:</span>
+            <span className="text-emerald-400 font-bold">{
+              config.type === 'dates' ? `Fijado el ${config.monthlyDates.join(', ')} de cada mes` :
+              config.type === 'weekly' ? 'Filtro Semanal de Días' :
+              `Frecuencia de ${config.intervalDays} días`
+            }</span>
+          </div>
+        </div>
+
         {/* Visual Monthly Calendar Component */}
         <div className="space-y-3 pt-3 border-t border-white/5">
           <div className="flex items-center justify-between">

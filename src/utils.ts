@@ -268,3 +268,159 @@ function checkWithdrawalPermission() {
 // }
 `;
 }
+
+/**
+ * Generates an elegant, interactive HTML/JS widget of countdown for users to display in their UI.
+ */
+export function generateUserCountdownWidgetCode(config: WithdrawalConfig): string {
+  let calculationLogic = '';
+  
+  if (config.type === 'dates') {
+    calculationLogic = `
+    const allowedDates = [${config.monthlyDates.join(', ')}];
+    const today = new Date();
+    const currentDay = today.getDate();
+    
+    let nextDate = null;
+    const currentMonthDates = allowedDates.filter(d => d >= currentDay);
+    if (currentMonthDates.length > 0) {
+      nextDate = new Date(today.getFullYear(), today.getMonth(), currentMonthDates[0]);
+    } else {
+      const sorted = [...allowedDates].sort((a,b) => a-b);
+      nextDate = new Date(today.getFullYear(), today.getMonth() + 1, sorted[0] || 1);
+    }
+    const isTodayAllowed = allowedDates.includes(currentDay);`;
+  } else if (config.type === 'weekly') {
+    calculationLogic = `
+    const allowedDays = [${config.weeklyDays.join(', ')}];
+    const today = new Date();
+    const currentDayOfWeek = today.getDay();
+    
+    const isTodayAllowed = allowedDays.includes(currentDayOfWeek);
+    let nextDate = new Date(today);
+    for (let i = 0; i < 8; i++) {
+      const test = new Date(today);
+      test.setDate(today.getDate() + i);
+      if (allowedDays.includes(test.getDay())) {
+        nextDate = test;
+        break;
+      }
+    }`;
+  } else {
+    calculationLogic = `
+    const intervalDays = ${config.intervalDays};
+    const pivotDate = new Date("${config.intervalStartDate}");
+    pivotDate.setHours(0,0,0,0);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    const isTodayAllowed = today.getTime() >= pivotDate.getTime() && 
+      Math.floor((today.getTime() - pivotDate.getTime()) / (1000 * 60 * 60 * 24)) % intervalDays === 0;
+    
+    let nextDate = new Date(today);
+    for (let i = 0; i < 365; i++) {
+      const test = new Date(today);
+      test.setDate(today.getDate() + i);
+      const diff = test.getTime() - pivotDate.getTime();
+      if (diff >= 0 && Math.floor(diff / (1000 * 60 * 60 * 24)) % intervalDays === 0) {
+        nextDate = test;
+        break;
+      }
+    }`;
+  }
+
+  const prettyRule = config.type === 'dates' 
+    ? `Días del mes: ${config.monthlyDates.join(', ')}`
+    : config.type === 'weekly'
+    ? `Días semanales: de lunes a domingo según filtro`
+    : `Cada ${config.intervalDays} días recurrentes`;
+
+  return `<!-- Widget de Cuenta Regresiva de Retiros para Usuarios de tappmusic -->
+<!-- Pégalo directamente en tu maquetación HTML de tencent/vercel (tappmusic.vercel.app) -->
+<div id="tappmusic-countdown-widget" style="font-family: system-ui, -apple-system, sans-serif; background: #0b0f19; border: 1.5px solid rgba(16, 185, 129, 0.3); border-radius: 16px; padding: 20px; color: #f3f4f6; max-width: 420px; margin: 15px auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);">
+  
+  <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.07); padding-bottom: 10px;">
+    <div style="background: rgba(16, 185, 129, 0.1); padding: 6px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+      <svg style="width: 20px; height: 20px; fill: none; stroke: #10b981; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line>
+        <line x1="8" y1="2" x2="8" y2="6"></line>
+        <line x1="3" y1="10" x2="21" y2="10"></line>
+      </svg>
+    </div>
+    <div>
+      <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #fff;">Próximo Retiro de Comisiones</h4>
+      <p style="margin: 0; font-size: 11px; color: #94a3b8;">Calendario Oficial de tappmusic VIP</p>
+    </div>
+  </div>
+
+  <div id="countdown-status-box" style="background: rgba(15, 23, 42, 0.6); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); text-align: center; transition: all 0.3s ease;">
+    <div id="countdown-badge" style="display: inline-block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 10px; border-radius: 9999px; margin-bottom: 10px; font-family: monospace;">
+      Calculando...
+    </div>
+    
+    <div id="countdown-days-text" style="font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 8px; font-variant-numeric: tabular-nums;">
+      -- Días
+    </div>
+    
+    <p id="countdown-message" style="margin: 0; font-size: 11.5px; color: #cbd5e1; line-height: 1.4;">
+      Analizando los ciclos del cronograma de retiros...
+    </p>
+  </div>
+
+  <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; color: #64748b; padding: 0 4px;">
+    <span>Configuración Actual:</span>
+    <span style="font-weight: bold; color: #10b981;">${prettyRule}</span>
+  </div>
+</div>
+
+<script>
+(function() {
+  function updateTappmusicCountdown() {
+    ${calculationLogic}
+    
+    const statusBox = document.getElementById("countdown-status-box");
+    const badge = document.getElementById("countdown-badge");
+    const daysText = document.getElementById("countdown-days-text");
+    const msg = document.getElementById("countdown-message");
+    
+    if (!badge || !daysText || !msg || !statusBox) return;
+
+    const testToday = new Date();
+    const tZero = new Date(testToday.getFullYear(), testToday.getMonth(), testToday.getDate());
+    const nZero = new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate());
+    
+    const diffTime = nZero.getTime() - tZero.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (isTodayAllowed) {
+      statusBox.style.borderColor = "rgba(16, 185, 129, 0.4)";
+      statusBox.style.background = "rgba(16, 185, 129, 0.06)";
+      badge.style.background = "rgba(16, 185, 129, 0.2)";
+      badge.style.color = "#34d399";
+      badge.innerText = "¡RETIROS HABILITADOS HOY!";
+      daysText.innerHTML = "00 <span style='font-size: 12px; opacity:0.7'>DÍAS</span>";
+      daysText.style.color = "#10b981";
+      msg.innerHTML = "¡Correcto! La compuerta de retiros se encuentra habilitada hoy. Puedes procesar las solicitudes directamente desde tu perfil.";
+    } else {
+      statusBox.style.borderColor = "rgba(245, 158, 11, 0.3)";
+      statusBox.style.background = "rgba(245, 158, 11, 0.03)";
+      badge.style.background = "rgba(245, 158, 11, 0.15)";
+      badge.style.color = "#fbbf24";
+      badge.innerText = "ACCESO RESTRINGIDO";
+      
+      const labelText = diffDays === 1 ? "DÍA RESTANTE" : "DÍAS RESTANTES";
+      daysText.innerHTML = diffDays + " <span style='font-size: 12px; opacity:0.7'>" + labelText + "</span>";
+      daysText.style.color = "#fbbf24";
+      
+      const dateStr = nextDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+      msg.innerHTML = "No es un día de retiro permitido hoy. Podrás retirar el <strong style='color:#fff'>" + dateStr + "</strong> (" + diffDays + " " + (diffDays === 1 ? 'día' : 'días') + " más).";
+    }
+  }
+
+  updateTappmusicCountdown();
+  setInterval(updateTappmusicCountdown, 60000);
+})();
+</script>
+`;
+}
