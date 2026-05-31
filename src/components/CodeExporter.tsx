@@ -10,7 +10,8 @@ import {
   generateJSONConfig, 
   generateHTMLCode, 
   generateWithdrawalBlockingCode,
-  generateUserCountdownWidgetCode
+  generateUserCountdownWidgetCode,
+  generateEyePasswordRegistrationCode
 } from '../utils';
 import { 
   Code, 
@@ -22,7 +23,8 @@ import {
   Info,
   Terminal,
   ExternalLink,
-  Calendar
+  Calendar,
+  Eye
 } from 'lucide-react';
 
 interface CodeExporterProps {
@@ -32,7 +34,7 @@ interface CodeExporterProps {
 }
 
 export function CodeExporter({ tiers, withdrawalConfig, conversionRate }: CodeExporterProps) {
-  const [activeTab, setActiveTab] = useState<'react' | 'json' | 'html' | 'checker' | 'widget'>('react');
+  const [activeTab, setActiveTab] = useState<'react' | 'json' | 'html' | 'checker' | 'widget' | 'eye'>('react');
   const [copied, setCopied] = useState(false);
 
   // Derive target string content
@@ -48,6 +50,8 @@ export function CodeExporter({ tiers, withdrawalConfig, conversionRate }: CodeEx
         return generateWithdrawalBlockingCode(withdrawalConfig);
       case 'widget':
         return generateUserCountdownWidgetCode(withdrawalConfig);
+      case 'eye':
+        return generateEyePasswordRegistrationCode();
       default:
         return '';
     }
@@ -143,6 +147,19 @@ export function CodeExporter({ tiers, withdrawalConfig, conversionRate }: CodeEx
           <Lock className="h-3.5 w-3.5" />
           Filtro Antifraude
         </button>
+        <button
+          type="button"
+          id="export-tab-eye"
+          onClick={() => { setActiveTab('eye'); setCopied(false); }}
+          className={`flex-1 min-w-[130px] py-2 rounded-lg text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-all ${
+            activeTab === 'eye' 
+              ? 'bg-sky-500/15 border border-sky-500/30 text-sky-450' 
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Eye className="h-3.5 w-3.5 text-sky-450" />
+          Visor Ojo (Registro)
+        </button>
       </div>
 
       {/* Code viewport block */}
@@ -190,6 +207,7 @@ export function CodeExporter({ tiers, withdrawalConfig, conversionRate }: CodeEx
             {activeTab === 'html' && 'Este es un bloque HTML modular listo para pegar en tu landing page o maquetación principal. Está pre-estilizado en línea para que se vea moderno, receptivo y elegante en móviles.'}
             {activeTab === 'widget' && '¡Este es el Calendario de Cuenta Regresiva para tus usuarios! Copia este bloque HTML+JS autolimpiable y pégalo en el perfil de tus usuarios en tappmusic.vercel.app para que visualicen dinámicamente cuántos días faltan para su retiro.'}
             {activeTab === 'checker' && 'Implementa este filtro en los endpoints que procesan peticiones de retiro. Bloqueará de raíz a los usuarios o scripts automatizados de hackers que intenten forzar retiros fuera de los días establecidos.'}
+            {activeTab === 'eye' && '¡Este es el código del Visor Ojo con contraseña segura! Copia este código HTML+CSS+JS y pégalo directamente en la página de registro de usuarios o login de tu sitio web de tareas. Permitirá a tus usuarios ver y ocultar la contraseña haciendo un simple clic sobre el icono del ojo.'}
           </p>
         </div>
       </div>

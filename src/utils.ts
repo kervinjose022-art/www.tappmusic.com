@@ -451,3 +451,91 @@ export function generateUserCountdownWidgetCode(config: WithdrawalConfig): strin
 </script>
 `;
 }
+
+/**
+ * Genera el código HTML + CSS en línea + Javascript nativo autolimpiable
+ * para el Campo de Contraseña del Registro con Visor (Ojo toggler)
+ */
+export function generateEyePasswordRegistrationCode(): string {
+  return `<!-- ========================================== -->
+<!-- CAMPO DE CONTRASEÑA SEGURO CON VISOR (OJO) PARA TAPPMUSICA -->
+<!-- Copia y pega este bloque en tu página de Registro o Perfil -->
+<!-- ========================================== -->
+<div style="font-family: system-ui, -apple-system, sans-serif; background: #0b0f19; border: 1.5px solid rgba(14, 165, 233, 0.25); border-radius: 16px; padding: 20px; color: #f3f4f6; max-width: 420px; margin: 15px auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);">
+  
+  <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+    <div style="background: rgba(14, 165, 233, 0.12); padding: 5px; border-radius: 6px; display: flex; align-items: center;">
+      <svg style="width: 16px; height: 16px; fill: none; stroke: #38bdf8; stroke-width: 2;" viewBox="0 0 24 24">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+      </svg>
+    </div>
+    <span style="font-[font-sans] font-weight: bold; font-size: 13.5px; color: #e2e8f0;">Contraseña de Seguridad</span>
+  </div>
+
+  <div style="position: relative; display: flex; align-items: center; box-sizing: border-box;">
+    <!-- Entrada de tipo contraseña por defecto -->
+    <input 
+      type="password" 
+      id="tappmusic-reg-password" 
+      placeholder="Ingresa una contraseña segura..." 
+      style="width: 100%; bg-color: rgb(7, 10, 19); background: rgb(7, 10, 19); border: 1.5px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 12px 48px 12px 14px; font-size: 13.5px; color: #fff; outline: none; transition: all 0.25s ease; box-sizing: border-box;" 
+      onfocus="this.style.borderColor='#38bdf8'; this.style.boxShadow='0 0 0 3px rgba(56, 189, 248, 0.15)'" 
+      onblur="this.style.borderColor='rgba(255, 255, 255, 0.08)'; this.style.boxShadow='none'"
+    />
+    
+    <!-- Botón con el icono del ojo del visor -->
+    <button 
+      type="button" 
+      id="tappmusic-reg-toggle-btn" 
+      style="position: absolute; right: 10px; background: transparent; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 6px; color: #64748b; transition: color 0.2s ease; outline: none; -webkit-tap-highlight-color: transparent;"
+      title="Mostrar/Ocultar contraseña"
+    >
+      <!-- Icono del Ojo ABIERTO (Visible por defecto) -->
+      <svg id="tappmusic-eye-svg-open" style="width: 19px; height: 19px; display: block;" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+        <circle cx="12" cy="12" r="3"></circle>
+      </svg>
+      <!-- Icono del Ojo REVENTADO/TACHADO (Oculto por defecto) -->
+      <svg id="tappmusic-eye-svg-closed" style="width: 19px; height: 19px; display: none;" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+        <line x1="1" y1="1" x2="23" y2="23"></line>
+      </svg>
+    </button>
+  </div>
+
+  <p style="margin: 8px 0 0 0; font-size: 11px; color: #64748b; line-height: 1.45; font-family: sans-serif;">
+    💡 <strong style="color: #94a3b8;">Recomendación:</strong> Haz clic en el icono del ojo para revisar que no tengas errores de ortografía antes de continuar tu registro.
+  </p>
+</div>
+
+<script>
+(function() {
+  const passInput = document.getElementById('tappmusic-reg-password');
+  const toggleBtn = document.getElementById('tappmusic-reg-toggle-btn');
+  const eyeOpen = document.getElementById('tappmusic-eye-svg-open');
+  const eyeClosed = document.getElementById('tappmusic-eye-svg-closed');
+
+  if (!passInput || !toggleBtn || !eyeOpen || !eyeClosed) return;
+
+  toggleBtn.addEventListener('click', function(e) {
+    // Evitar que envíe el formulario al presionarlo accidentalmente
+    e.preventDefault();
+    
+    if (passInput.type === 'password') {
+      passInput.type = 'text';
+      eyeOpen.style.display = 'none';
+      eyeClosed.style.display = 'block';
+      toggleBtn.style.color = '#38bdf8'; // Resalta celeste al verla
+    } else {
+      passInput.type = 'password';
+      eyeOpen.style.display = 'block';
+      eyeClosed.style.display = 'none';
+      toggleBtn.style.color = '#64748b'; // Normal gris al estar oculta
+    }
+  });
+})();
+</script>
+`;
+}
+

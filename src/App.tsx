@@ -13,6 +13,7 @@ import {
 import { VIPTierCard } from './components/VIPTierCard';
 import { WithdrawalCalendar } from './components/WithdrawalCalendar';
 import { CodeExporter } from './components/CodeExporter';
+import { RegistrationSimulator } from './components/RegistrationSimulator';
 import { 
   Plus, 
   RotateCcw, 
@@ -500,6 +501,7 @@ export default function App() {
               config={withdrawalConfig} 
               onUpdate={handleUpdateWithdrawal} 
             />
+            <RegistrationSimulator />
           </div>
 
           {/* Right panel: Membresías VIP Editor list (occupies 7 cols of 12) */}
