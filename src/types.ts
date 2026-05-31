@@ -28,6 +28,7 @@ export interface WithdrawalConfig {
   intervalStartDate: string; // YYYY-MM-DD
   // If 'weekly': indices of active days, e.g. [1] for Monday, etc.
   weeklyDays: number[]; 
+  feePercentage?: number; // Optional, defaults to 5% if not present
 }
 
 export interface AppState {

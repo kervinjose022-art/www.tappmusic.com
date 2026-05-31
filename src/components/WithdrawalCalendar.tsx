@@ -16,7 +16,8 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
-  ListFilter
+  ListFilter,
+  Percent
 } from 'lucide-react';
 
 interface WithdrawalCalendarProps {
@@ -354,6 +355,46 @@ export function WithdrawalCalendar({ config, onUpdate }: WithdrawalCalendarProps
           )}
         </div>
 
+        {/* Unified Commission Section */}
+        <div className="p-4 rounded-xl bg-slate-900/40 border border-emerald-500/20 space-y-3 shadow-md shadow-emerald-950/10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-slate-300">
+              <Percent className="h-3.5 w-3.5 text-emerald-400" />
+              COMISIÓN PARA RETIROS (FEE)
+            </div>
+            <div className="text-xs font-mono font-bold text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2.5 py-0.5 rounded-full">
+              {config.feePercentage !== undefined ? config.feePercentage : 5}% Retenido
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-[11px] text-slate-400 leading-normal">
+              Ajusta el porcentaje de comisión que cobrará el sistema de tappmusica por cada retiro aprobado de tus usuarios.
+            </p>
+            <div className="flex items-center gap-4">
+              <input
+                type="range"
+                min="0"
+                max="30"
+                step="0.5"
+                value={config.feePercentage !== undefined ? config.feePercentage : 5}
+                onChange={(e) => onUpdate({ ...config, feePercentage: Number(e.target.value) })}
+                className="flex-1 accent-emerald-400 h-1 bg-slate-950 rounded-lg cursor-pointer"
+              />
+              <div className="flex items-center gap-1 shrink-0">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={config.feePercentage !== undefined ? config.feePercentage : 5}
+                  onChange={(e) => onUpdate({ ...config, feePercentage: Math.min(100, Math.max(0, Number(e.target.value))) })}
+                  className="w-16 bg-slate-950 border border-white/10 rounded-lg py-1 px-2 text-xs text-center text-white font-mono"
+                />
+                <span className="text-slate-400 text-xs font-mono">%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Live Simulator for Users */}
         <div className="bg-slate-950/70 p-4 rounded-xl border border-emerald-500/20 space-y-3 relative overflow-hidden" id="user-preview-widget-card">
           <div className="absolute top-0 right-0 bg-emerald-500/10 text-emerald-400 font-mono text-[8px] font-bold px-2 py-0.5 rounded-bl border-l border-b border-emerald-500/20 uppercase tracking-wider">
@@ -398,13 +439,17 @@ export function WithdrawalCalendar({ config, onUpdate }: WithdrawalCalendarProps
             </p>
           </div>
           
-          <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 px-1 pt-0.5">
-            <span>Regla:</span>
+          <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 px-1 pt-0.5 border-b border-white/5 pb-1.5 mb-1.5">
+            <span>Regla de Calendario:</span>
             <span className="text-emerald-400 font-bold">{
               config.type === 'dates' ? `Fijado el ${config.monthlyDates.join(', ')} de cada mes` :
               config.type === 'weekly' ? 'Filtro Semanal de Días' :
               `Frecuencia de ${config.intervalDays} días`
             }</span>
+          </div>
+          <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 px-1">
+            <span>Comisión de Retiro (Fee):</span>
+            <span className="text-amber-400 font-bold">-{config.feePercentage !== undefined ? config.feePercentage : 5}% del monto solicitado</span>
           </div>
         </div>
 

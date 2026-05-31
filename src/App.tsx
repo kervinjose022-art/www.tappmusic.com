@@ -313,20 +313,23 @@ export default function App() {
                 Sostenibilidad del Sistema
               </span>
               <h4 className="text-xl font-display font-bold text-white">
-                Frecuencia de Retiros
+                Frecuencia & Comisiones
               </h4>
               <p className="text-slate-400 text-xs leading-normal">
-                Controlar los retiros es vital. Has configurado límites para que los usuarios puedan enviar solicitudes de fondos {
-                  withdrawalConfig.type === 'dates' ? `solo los días ${withdrawalConfig.monthlyDates.join(', ')} del mes.` : 
+                Has establecido límites de retiro para que tus usuarios puedan cobrar {
+                  withdrawalConfig.type === 'dates' ? `solo los días ${withdrawalConfig.monthlyDates.join(', ')} de cada mes.` : 
                   withdrawalConfig.type === 'weekly' ? 'solo los días de la semana seleccionados.' : 
                   `exactamente cada ${withdrawalConfig.intervalDays} días recurrentes.`
-                }
+                } Adicionalmente, el sistema cobrará la tasa del <strong className="text-emerald-400 font-mono">{withdrawalConfig.feePercentage ?? 5}%</strong> de comisión de retiro.
               </p>
             </div>
 
-            <div className="pt-2 border-t border-white/5 text-[11px] font-mono text-emerald-400 bg-emerald-500/5 px-2.5 py-1.5 rounded-lg border border-emerald-500/15 flex items-center gap-1.5">
-              <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
-              <span>Intervalo actual: {withdrawalConfig.type === 'dates' ? 'Cada 10 días (Mensuales)' : 'Filtro Dinámico'}</span>
+            <div className="pt-2 border-t border-white/5 text-[11px] font-mono text-emerald-400 bg-emerald-500/5 px-2.5 py-1.5 rounded-lg border border-emerald-500/15 flex items-center gap-1.5 justify-between">
+              <div className="flex items-center gap-1.5">
+                <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+                <span>Intervalo actual: {withdrawalConfig.type === 'dates' ? 'Mensuales' : 'Personalizado'}</span>
+              </div>
+              <span className="text-amber-400 font-bold font-mono">Fee: {withdrawalConfig.feePercentage ?? 5}%</span>
             </div>
           </div>
 

@@ -131,7 +131,8 @@ export const DEFAULT_WITHDRAWAL_CONFIG: WithdrawalConfig = {
   monthlyDates: [10, 20, 30], // Default every 10 days of the month
   intervalDays: 10,
   intervalStartDate: '2026-05-01',
-  weeklyDays: [1, 4] // Mon & Thu
+  weeklyDays: [1, 4], // Mon & Thu
+  feePercentage: 5 // Commission fee percentage (e.g. 5%)
 };
 
 /**
@@ -165,6 +166,7 @@ export function generateJSONConfig(tiers: VIPTier[], withdrawalConfig: Withdrawa
     configs: {
       conversionRate,
       withdrawalType: withdrawalConfig.type,
+      withdrawalFeePercent: withdrawalConfig.feePercentage ?? 5,
       withdrawalSettings: withdrawalConfig.type === 'dates' 
         ? { monthlyDates: withdrawalConfig.monthlyDates } 
         : withdrawalConfig.type === 'weekly' 
@@ -261,11 +263,29 @@ function checkWithdrawalPermission() {
   };
 }
 
+/**
+ * Calculador de comisión de retiro de ${config.feePercentage ?? 5}% establecida en tappmusic
+ */
+function getWithdrawalNetPayout(requestedAmount) {
+  const feePercent = ${config.feePercentage ?? 5}; // Establecido por el administrador
+  const feeAmount = requestedAmount * (feePercent / 100);
+  const netAmount = requestedAmount - feeAmount;
+  return {
+    requestedAmount,
+    feePercent,
+    feeAmount: Number(feeAmount.toFixed(2)),
+    netAmount: Number(netAmount.toFixed(2))
+  };
+}
+
 // Ejemplo de uso:
 // const validation = checkWithdrawalPermission();
 // if (!validation.allowed) {
 //   return renderErrorMessage(validation.message);
 // }
+//
+// const { netAmount, feeAmount } = getWithdrawalNetPayout(requestedCoins);
+// console.log("Se retiran " + requestedCoins + " netos: " + netAmount + " (Comisión: " + feeAmount + ")");
 `;
 }
 
@@ -348,9 +368,12 @@ export function generateUserCountdownWidgetCode(config: WithdrawalConfig): strin
         <line x1="3" y1="10" x2="21" y2="10"></line>
       </svg>
     </div>
-    <div>
+    <div style="flex: 1;">
       <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #fff;">Próximo Retiro de Comisiones</h4>
       <p style="margin: 0; font-size: 11px; color: #94a3b8;">Calendario Oficial de tappmusic VIP</p>
+    </div>
+    <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.25); color: #fbbf24; font-size: 10px; font-family: monospace; font-weight: bold; padding: 2px 7px; border-radius: 6px; text-align: center; white-space: nowrap;">
+      -${config.feePercentage ?? 5}% Fee
     </div>
   </div>
 
@@ -368,9 +391,13 @@ export function generateUserCountdownWidgetCode(config: WithdrawalConfig): strin
     </p>
   </div>
 
-  <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; color: #64748b; padding: 0 4px;">
+  <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; color: #64748b; padding: 0 4px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
     <span>Configuración Actual:</span>
     <span style="font-weight: bold; color: #10b981;">${prettyRule}</span>
+  </div>
+  <div style="margin-top: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; color: #64748b; padding: 0 4px;">
+    <span>Comisión de Retiro:</span>
+    <span style="font-weight: bold; color: #fbbf24;">${config.feePercentage ?? 5}% por transacción</span>
   </div>
 </div>
 
