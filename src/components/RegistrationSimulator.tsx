@@ -1,3 +1,8 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import React, { useState } from 'react';
 import { Eye, EyeOff, Lock, User, Key, Check, HelpCircle } from 'lucide-react';
 
@@ -53,17 +58,17 @@ export function RegistrationSimulator() {
 
         {/* Dynamic Password Box matching the requested eye visibility toggle */}
         <div className="space-y-1 relative">
-          <label className="text-[10px] uppercase font-mono text-slate-400 font-bold block text-slate-300">Contraseña de Inicio *</label>
+          <label className="text-[10px] uppercase font-mono text-slate-400 font-bold block">Contraseña Segura</label>
           <div className="relative">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-              <Lock className="h-3.5 w-3.5 text-slate-500" />
+            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+              <Lock className="h-3.5 w-3.5" />
             </span>
             <input
               type={showPassword ? 'text' : 'password'}
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Crea una contraseña..."
+              placeholder="Crea tu contraseña..."
               className="w-full bg-slate-950 border border-white/5 rounded-lg py-2 pl-9 pr-10 text-xs text-slate-200 outline-none focus:border-sky-500/40 transition-all font-mono"
             />
             {/* Eye toggle button */}
@@ -110,4 +115,4 @@ export function RegistrationSimulator() {
       </div>
     </div>
   );
-                  }
+}
