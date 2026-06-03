@@ -1,0 +1,105 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User account details, VIP membership access, current coin balance, and daily tasks watching progress.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "The email address of the user."
+        },
+        "isAdmin": {
+          "type": "boolean",
+          "description": "Flag indicating if the user has database administrator access."
+        },
+        "balance": {
+          "type": "number",
+          "description": "Available coin balance of the user."
+        },
+        "currentVIP": {
+          "type": "string",
+          "description": "The active VIP level identifier of the user (e.g. 'plata', 'oro', 'rubi')."
+        },
+        "tasksCompletedToday": {
+          "type": "number",
+          "description": "Number of videos watched today by the user."
+        },
+        "lastTaskDate": {
+          "type": "string",
+          "description": "The date when the user completed their last task (YYYY-MM-DD)."
+        }
+      },
+      "required": ["email", "isAdmin"]
+    },
+    "DepositRequest": {
+      "title": "DepositRequest",
+      "description": "A booking request submitted by a user to purchase/register a VIP tier with proof of payment.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        },
+        "userEmail": {
+          "type": "string"
+        },
+        "tierId": {
+          "type": "string"
+        },
+        "tierName": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "referenceId": {
+          "type": "string"
+        }
+      },
+      "required": ["userId", "username", "tierId", "price", "status", "createdAt"]
+    },
+    "Configuration": {
+      "title": "Configuration",
+      "description": "System variables for conversion rate, withdrawal fees, allowed calendar dates, and active VIP membership levels.",
+      "type": "object",
+      "properties": {
+        "conversionRate": {
+          "type": "number",
+          "description": "Multiplication factor representing how many Coins match 1 USD (defaults to 36.7)."
+        },
+        "viptiers": {
+          "type": "array",
+          "description": "All configured active and inactive VIP memberships offered by tappmusic."
+        },
+        "withdrawalConfig": {
+          "type": "object",
+          "description": "Rules determining withdrawal commission fees and day restrictions."
+        }
+      },
+      "required": ["conversionRate", "viptiers", "withdrawalConfig"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles which hold the admin credential, balance, and VIP levels to authorise console operations."
+    },
+    "/deposit_requests/{requestId}": {
+      "schema": "DepositRequest",
+      "description": "Financial deposit and VIP purchase requests submitted by users waiting for admin approval."
+    },
+    "/configurations/{configId}": {
+      "schema": "Configuration",
+      "description": "Consolidated system state holding the current active rates, withdrawal configs, and tiers list."
+    }
+  }
+}

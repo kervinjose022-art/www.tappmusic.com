@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- GLOBAL SAFETY NET: DEFAULT DENY ALL ---
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- REUSABLE SECURITY UTILITIES ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Verify whether the signed-in user is an authorized admin in the 'users' collection
+    function isAdmin() {
+      return isSignedIn() 
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\\\-]+$');
+    }
+
+    // --- COLLECTION 1: USERS PRIVILEGES ---
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isSignedIn() && isAdmin();
+      
+      // Allow creation/modification with optional progress tracking attributes safely
+      allow create: if isSignedIn() && (request.auth.uid == userId)
+        && (request.resource.data.isAdmin == false || isAdmin());
+        
+      allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin())
+        // Block privilege escalation: normal users cannot change their own isAdmin status
+        && (request.resource.data.isAdmin == resource.data.isAdmin || isAdmin());
+
+      allow delete: if isSignedIn() && isAdmin();
+    }
+
+    // --- COLLECTION 4: DEPOSIT & MEMBERSHIP PURCHASES ---
+    match /deposit_requests/{requestId} {
+      allow get: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isSignedIn() && isAdmin();
+    }
+
+    // --- COLLECTION 2: CONFIGURATIONS ---
+    match /configurations/{configId} {
+      allow get: if true; // Configurations are public read so clients (like tapmusic web) can grab current rates
+      allow list: if isSignedIn();
+
+      allow create, update, delete: if isSignedIn() && isAdmin() && isValidId(configId);
+    }
+
+    // --- COLLECTION 3: CONFIG DIRECT PATH ---
+    match /config/{configId} {
+      allow get: if true;
+      allow list: if isSignedIn();
+
+      allow create, update, delete: if isSignedIn() && isAdmin() && isValidId(configId);
+    }
+  }
+}
