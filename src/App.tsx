@@ -100,25 +100,25 @@ export default function App() {
       title: "Mente de Millonario - Sabiduría Financiera",
       quote: "No te enfoques en el dinero, enfócate en el valor que entregas al mundo y las monedas vendrán solas.",
       category: "MOTIVACIÓN",
-      videoUrl: "https://www.youtube.com/embed/H1Kf980_Wd0?autoplay=1&mute=1&controls=0&loop=1&playlist=H1Kf980_Wd0"
+      videoUrl: "https://www.youtube.com/embed/g-jwWYX7Jlo"
     },
     {
       title: "Jesús en mi Corazón - Reflexión de Fe",
       quote: "La fe no hace que las cosas sean fáciles, hace que las cosas sean perfectamente posibles.",
       category: "CREENCIAS",
-      videoUrl: "https://www.youtube.com/embed/S_S789tT0A8?autoplay=1&mute=1&controls=0&loop=1&playlist=S_S789tT0A8"
+      videoUrl: "https://www.youtube.com/embed/vKqbeID78qY"
     },
     {
       title: "Éxito Inquebrantable - Fuerza Emprendedora",
       quote: "El único fracaso real es dejar de intentarlo. Cada caída es un paso más hacia tu membresía dorada.",
       category: "EMPRENDER",
-      videoUrl: "https://www.youtube.com/embed/5T5T45_Wd10?autoplay=1&mute=1&controls=0&loop=1&playlist=5T5T45_Wd10"
+      videoUrl: "https://www.youtube.com/embed/8kS9s_hQv5E"
     },
     {
       title: "Disciplina Metódica - Hábitos Productivos",
       quote: "La disciplina silenciosa diaria es el secreto mejor guardado de los súper administradores de vida.",
       category: "PRODUCTIVIDAD",
-      videoUrl: "https://www.youtube.com/embed/U9U45_Wd15?autoplay=1&mute=1&controls=0&loop=1&playlist=U9U45_Wd15"
+      videoUrl: "https://www.youtube.com/embed/fLaVrxC88B0"
     }
   ];
 
@@ -1349,77 +1349,11 @@ export default function App() {
         {activeMainTab === 'client' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in" id="client-playback-workspace">
             
-            {/* Left Column: Physical Vinyl & VIP Upgrade Showcase */}
-            <div className="lg:col-span-5 space-y-6">
+            {/* Left Column: VIP Upgrade Showcase (Only Reels & VIP plans) */}
+            <div className="lg:col-span-12 xl:col-span-5 space-y-6">
               
-              {/* Cozy Vinyl turntable record spinner */}
-              <div className="glass-panel p-6 rounded-2xl border border-white/5 bg-[#090d16]/95 flex flex-col items-center justify-center text-center relative overflow-hidden" id="widget-vinyl">
-                <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-mono px-2 py-0.5 rounded border border-emerald-500/20">
-                  <Disc className="h-3 w-3 animate-spin text-emerald-400" />
-                  <span>C-LoFi Engine Activo</span>
-                </div>
-
-                <div className="my-8 relative">
-                  {/* Outer circle vinyl grooves */}
-                  <div className={`h-48 w-48 rounded-full bg-slate-950 border-4 border-slate-900 shadow-2xl flex items-center justify-center relative transition-all duration-500 ${vinylPlaying ? 'animate-spin' : ''}`} style={{ animationDuration: '10s' }}>
-                    <div className="absolute inset-2 rounded-full border border-white/5"></div>
-                    <div className="absolute inset-6 rounded-full border border-white/5"></div>
-                    <div className="absolute inset-10 rounded-full border border-white/5"></div>
-                    <div className="absolute inset-14 rounded-full border border-white/5"></div>
-                    
-                    {/* Center Album Cover */}
-                    <div className="h-16 w-16 rounded-full bg-gradient-to-tr from-emerald-500 to-sky-500 flex items-center justify-center relative border-4 border-slate-950">
-                      <Music className="h-6 w-6 text-slate-950" />
-                      <div className="absolute h-3.5 w-3.5 bg-slate-950 rounded-full border border-white/10"></div>
-                    </div>
-                  </div>
-
-                  {/* Tonearm holder */}
-                  <div className={`absolute top-0 -right-4 h-24 w-2 bg-slate-600 rounded origin-top transition-transform duration-500 ${vinylPlaying ? 'rotate-[25deg]' : 'rotate-0'}`} style={{ transformOrigin: 'top center' }}>
-                    <div className="h-4 w-4 bg-slate-500 rounded-full -ml-1 mt-2"></div>
-                    <div className="h-3 w-5 bg-silver rounded absolute bottom-0 -left-1"></div>
-                  </div>
-                </div>
-
-                <div className="space-y-2 max-w-xs">
-                  <h4 className="text-sm font-semibold text-white tracking-tight">TAPPMUSIC Lofi Synthesizer Beat</h4>
-                  <p className="text-xs text-slate-400 italic">"Estudia, relájate y acumula monedas mientras monitoreas misiones VIP"</p>
-                </div>
-
-                {/* Synth Beats controls */}
-                <div className="w-full mt-6 pt-5 border-t border-white/5 space-y-4">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-400">Tempo de Pulso Lofi:</span>
-                    <span className="font-mono text-emerald-400 font-bold">{synthAudioBpm} BPM</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="60"
-                    max="150"
-                    value={synthAudioBpm}
-                    onChange={(e) => setSynthAudioBpm(Number(e.target.value))}
-                    className="w-full accent-emerald-400 h-1 bg-slate-950 rounded-lg cursor-pointer"
-                  />
-
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setVinylPlaying(!vinylPlaying)}
-                      className={`flex-1 py-2 text-xs font-semibold rounded-xl border transition-all flex items-center justify-center gap-2 ${
-                        vinylPlaying 
-                          ? 'bg-red-500/10 border-red-500/25 text-red-400' 
-                          : 'bg-emerald-500 hover:bg-emerald-450 border-emerald-400/20 text-slate-950'
-                      }`}
-                    >
-                      {vinylPlaying ? <Pause className="h-4.5 w-4.5" /> : <Play className="h-4.5 w-4.5" />}
-                      {vinylPlaying ? 'Pausar Sintetizador' : 'Escuchar Canal Lofi'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
               {/* VIP upgrade cards showcase */}
-              <div className="glass-panel p-5 rounded-2xl border border-white/5 bg-[#090d16]/95 space-y-4">
+              <div className="glass-panel p-5 rounded-2xl border border-white/5 bg-[#090d16]/95 space-y-4 shadow-xl">
                 <div className="flex justify-between items-center">
                   <h4 className="text-xs uppercase font-mono font-bold tracking-wider text-slate-400 flex items-center gap-1.5">
                     <Award className="h-4 w-4 text-emerald-400" />
@@ -1512,12 +1446,12 @@ export default function App() {
                     <iframe
                       width="100%"
                       height="100%"
-                      src={`${REEL_MUSIC_TASKS[selectedReelIdx].videoUrl}?autoplay=1&mute=1&controls=0&modestbranding=1`}
+                      src={`${REEL_MUSIC_TASKS[selectedReelIdx].videoUrl}?autoplay=1&mute=0&controls=1&modestbranding=1`}
                       title="Music Reel Player"
                       frameBorder="0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
-                      className="pointer-events-none" // Avoid skip/scroll cheating
+                      className="w-full h-full"
                     ></iframe>
 
                     {/* Timer progress load indicator bar */}
