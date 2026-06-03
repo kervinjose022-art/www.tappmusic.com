@@ -26,12 +26,16 @@ interface WithdrawalCalendarProps {
 }
 
 export function WithdrawalCalendar({ config, onUpdate }: WithdrawalCalendarProps) {
-  // Current month rendering state (defaults to May 2026 based on simulated environment clock)
-  const [currentRenderDate, setCurrentRenderDate] = useState<Date>(new Date('2026-05-31'));
-  const [testDateString, setTestDateString] = useState<string>('2026-06-10');
+  // Current month rendering state (defaults to current system date)
+  const [currentRenderDate, setCurrentRenderDate] = useState<Date>(new Date());
+  const [testDateString, setTestDateString] = useState<string>(() => {
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    return nextWeek.toISOString().split('T')[0];
+  });
   
   // Real or mock today date
-  const today = new Date('2026-05-31');
+  const today = new Date();
 
   // Trigger month navigation
   const prevMonth = () => {
@@ -162,7 +166,7 @@ export function WithdrawalCalendar({ config, onUpdate }: WithdrawalCalendarProps
           </div>
           <div className="space-y-1">
             <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
-              Estado de la compuerta de retiros (Hoy: 2026-05-31)
+              Estado de la compuerta de retiros (Hoy: {formatLocalDateString(today)})
             </h4>
             {withdrawalAllowedToday ? (
               <p className="text-sm font-semibold text-white">

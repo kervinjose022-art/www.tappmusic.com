@@ -100,25 +100,25 @@ export default function App() {
       title: "Mente de Millonario - Sabiduría Financiera",
       quote: "No te enfoques en el dinero, enfócate en el valor que entregas al mundo y las monedas vendrán solas.",
       category: "MOTIVACIÓN",
-      videoUrl: "https://www.youtube.com/embed/g-jwWYX7Jlo"
+      videoUrl: "https://www.youtube.com/embed/5qap5aO4i9A"
     },
     {
       title: "Jesús en mi Corazón - Reflexión de Fe",
       quote: "La fe no hace que las cosas sean fáciles, hace que las cosas sean perfectamente posibles.",
       category: "CREENCIAS",
-      videoUrl: "https://www.youtube.com/embed/vKqbeID78qY"
+      videoUrl: "https://www.youtube.com/embed/tntOCGkgt98"
     },
     {
       title: "Éxito Inquebrantable - Fuerza Emprendedora",
       quote: "El único fracaso real es dejar de intentarlo. Cada caída es un paso más hacia tu membresía dorada.",
       category: "EMPRENDER",
-      videoUrl: "https://www.youtube.com/embed/8kS9s_hQv5E"
+      videoUrl: "https://www.youtube.com/embed/jfKfPfyJRdk"
     },
     {
       title: "Disciplina Metódica - Hábitos Productivos",
       quote: "La disciplina silenciosa diaria es el secreto mejor guardado de los súper administradores de vida.",
       category: "PRODUCTIVIDAD",
-      videoUrl: "https://www.youtube.com/embed/fLaVrxC88B0"
+      videoUrl: "https://www.youtube.com/embed/gWyc9w0K_e0"
     }
   ];
 
@@ -377,7 +377,8 @@ export default function App() {
       let initialTiers = DEFAULT_VIP_TIERS;
       if (storedTiers) {
         const parsed = JSON.parse(storedTiers);
-        if (parsed.some((t: any) => t.id === 'bronce') || parsed.length === 0) {
+        const hasOldData = parsed.some((t: any) => t.id === 'plata' && t.dailyTasks !== 5) || parsed.length !== DEFAULT_VIP_TIERS.length;
+        if (parsed.some((t: any) => t.id === 'bronce') || parsed.length === 0 || hasOldData) {
           initialTiers = DEFAULT_VIP_TIERS;
           localStorage.setItem('tapp_vip_tiers', JSON.stringify(DEFAULT_VIP_TIERS));
         } else {
@@ -1446,7 +1447,7 @@ export default function App() {
                     <iframe
                       width="100%"
                       height="100%"
-                      src={`${REEL_MUSIC_TASKS[selectedReelIdx].videoUrl}?autoplay=1&mute=0&controls=1&modestbranding=1`}
+                      src={`${REEL_MUSIC_TASKS[selectedReelIdx].videoUrl}?autoplay=1&mute=1&controls=1&modestbranding=1`}
                       title="Music Reel Player"
                       frameBorder="0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"

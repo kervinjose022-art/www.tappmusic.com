@@ -30,16 +30,19 @@ export function isWithdrawalDay(date: Date, config: WithdrawalConfig): boolean {
   }
 
   if (config.type === 'interval') {
-    const start = new Date(config.intervalStartDate);
-    // Reset times to compare actual day differences
-    start.setHours(0, 0, 0, 0);
+    // Safely anchor start date to noon to avoid local timezone offset drift
+    const startStr = config.intervalStartDate.includes('T') 
+      ? config.intervalStartDate.split('T')[0] 
+      : config.intervalStartDate;
+    const start = new Date(startStr + 'T12:00:00');
+    
     const target = new Date(date);
-    target.setHours(0, 0, 0, 0);
+    target.setHours(12, 0, 0, 0);
 
     const diffTime = target.getTime() - start.getTime();
     if (diffTime < 0) return false; // Before start date
 
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
     return diffDays % config.intervalDays === 0;
   }
 
@@ -80,8 +83,8 @@ export const DEFAULT_VIP_TIERS: VIPTier[] = [
     price: 10,
     reward: 367,
     rewardType: 'Monedas',
-    desc: 'Acceso completo a misiones de 367 recompensas.',
-    dailyTasks: 10,
+    desc: 'Acceso completo a misiones de 367 monedas.',
+    dailyTasks: 5,
     isActive: true
   },
   {
@@ -90,8 +93,8 @@ export const DEFAULT_VIP_TIERS: VIPTier[] = [
     price: 20,
     reward: 734,
     rewardType: 'Monedas',
-    desc: 'Acceso TOTAL de misiones de 734 monedas.',
-    dailyTasks: 15,
+    desc: 'Acceso completo a misiones de 734 monedas.',
+    dailyTasks: 7,
     isActive: true
   },
   {
@@ -100,8 +103,8 @@ export const DEFAULT_VIP_TIERS: VIPTier[] = [
     price: 40,
     reward: 1468,
     rewardType: 'Monedas',
-    desc: 'Acceso completo a misiones exclusivas de 1468.',
-    dailyTasks: 18,
+    desc: 'Acceso completo a misiones de 1468 monedas.',
+    dailyTasks: 10,
     isActive: true
   },
   {
@@ -110,8 +113,8 @@ export const DEFAULT_VIP_TIERS: VIPTier[] = [
     price: 120,
     reward: 4404,
     rewardType: 'Monedas',
-    desc: '20 videos Premium y una recompensa extra de 4404.',
-    dailyTasks: 20,
+    desc: 'Acceso completo a misiones de 4404 monedas.',
+    dailyTasks: 15,
     isActive: true
   },
   {
@@ -120,8 +123,18 @@ export const DEFAULT_VIP_TIERS: VIPTier[] = [
     price: 420,
     reward: 15414,
     rewardType: 'Monedas',
-    desc: 'Membresía empresarial VIP completa de 15414.',
-    dailyTasks: 25,
+    desc: 'Acceso completo a misiones de 15414 monedas.',
+    dailyTasks: 17,
+    isActive: true
+  },
+  {
+    id: 'corona',
+    name: 'VIP Corona Imperial',
+    price: 1000,
+    reward: 36700,
+    rewardType: 'Monedas',
+    desc: 'Acceso prioritario supremo, 20 videos VIP y recompensas máximas de 36700 monedas.',
+    dailyTasks: 20,
     isActive: true
   }
 ];
