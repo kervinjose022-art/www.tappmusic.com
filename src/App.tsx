@@ -93,6 +93,44 @@ export default function App() {
   const [showVIPDepositModal, setShowVIPDepositModal] = useState<boolean>(false);
   const [targetDepositTier, setTargetDepositTier] = useState<VIPTier | null>(null);
   const [enteredReferenceProof, setEnteredReferenceProof] = useState<string>('');
+  const [enteredReferenceFile, setEnteredReferenceFile] = useState<string>('');
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+
+  // --- WITHDRAWALS STATE ---
+  const [withdrawalRequestsList, setWithdrawalRequestsList] = useState<any[]>([]);
+  const [showWithdrawModal, setShowWithdrawModal] = useState<boolean>(false);
+  const [withdrawMethod, setWithdrawMethod] = useState<'movil' | 'usdt'>('movil');
+  const [withdrawCoinsAmount, setWithdrawCoinsAmount] = useState<number>(100);
+  
+  // User movil fields
+  const [userMovilBanco, setUserMovilBanco] = useState<string>('Banco de Venezuela (0102)');
+  const [userMovilPhone, setUserMovilPhone] = useState<string>('');
+  const [userMovilCI, setUserMovilCI] = useState<string>('');
+  const [userMovilName, setUserMovilName] = useState<string>('');
+  
+  // User USDT field
+  const [userUSDTAddress, setUserUSDTAddress] = useState<string>('');
+
+  // Superadmin tab option
+  const [superAdminReqTab, setSuperAdminReqTab] = useState<'deposits' | 'withdrawals'>('deposits');
+
+  // Modal for viewing payment capture proof
+  const [selectedViewerImage, setSelectedViewerImage] = useState<string | null>(null);
+
+  // Admin customized deposit config
+  const [adminPaymentConfig, setAdminPaymentConfig] = useState<{
+    usdtAddress: string;
+    pagoMovilBanco: string;
+    pagoMovilCI: string;
+    pagoMovilTelefono: string;
+    pagoMovilName: string;
+  }>({
+    usdtAddress: '0x32Ad964aB7Fe3b1378AA076A9A8B6Cdcfc55EcbE',
+    pagoMovilBanco: 'Banco de Venezuela (0102)',
+    pagoMovilCI: 'V-27456789',
+    pagoMovilTelefono: '0424-7654321',
+    pagoMovilName: 'Kervin Jose Artigas'
+  });
   
   // --- REAL VIDEO ITEMS LIST ---
   const REEL_MUSIC_TASKS = [
@@ -253,6 +291,7 @@ export default function App() {
     let unsubscribeConfig: (() => void) | null = null;
     let unsubscribeUserDoc: (() => void) | null = null;
     let unsubscribeRequests: (() => void) | null = null;
+    let unsubscribeWithdrawalRequests: (() => void) | null = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
@@ -317,6 +356,19 @@ export default function App() {
             console.error("Requests list read error:", err);
           });
 
+          // 2b. Subscribe to Withdrawal Requests in real-time
+          const withdrawalRequestsRef = collection(db, 'withdrawal_requests');
+          unsubscribeWithdrawalRequests = onSnapshot(withdrawalRequestsRef, (snapshot) => {
+            const reqs: any[] = [];
+            snapshot.forEach((snapDoc) => {
+              reqs.push({ id: snapDoc.id, ...snapDoc.data() });
+            });
+            reqs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            setWithdrawalRequestsList(reqs);
+          }, (err) => {
+            console.error("Withdrawal requests read error:", err);
+          });
+
           // 3. Subscribe to config/default collection for real-time syncing
           const configDocRef = doc(db, 'config', 'default');
           unsubscribeConfig = onSnapshot(configDocRef, (snapshot) => {
@@ -330,6 +382,9 @@ export default function App() {
               }
               if (data.withdrawalConfig) {
                 setWithdrawalConfig(data.withdrawalConfig);
+              }
+              if (data.adminPaymentConfig) {
+                setAdminPaymentConfig(data.adminPaymentConfig);
               }
               setCloudLoaded(true);
             } else {
@@ -356,6 +411,7 @@ export default function App() {
         if (unsubscribeConfig) unsubscribeConfig();
         if (unsubscribeUserDoc) unsubscribeUserDoc();
         if (unsubscribeRequests) unsubscribeRequests();
+        if (unsubscribeWithdrawalRequests) unsubscribeWithdrawalRequests();
       }
     });
 
@@ -364,6 +420,7 @@ export default function App() {
       if (unsubscribeConfig) unsubscribeConfig();
       if (unsubscribeUserDoc) unsubscribeUserDoc();
       if (unsubscribeRequests) unsubscribeRequests();
+      if (unsubscribeWithdrawalRequests) unsubscribeWithdrawalRequests();
     };
   }, []);
 
@@ -373,6 +430,8 @@ export default function App() {
       const storedTiers = localStorage.getItem('tapp_vip_tiers');
       const storedRate = localStorage.getItem('tapp_conversion_rate');
       const storedWithdraw = localStorage.getItem('tapp_withdrawal_config');
+      const storedPayment = localStorage.getItem('tapp_admin_payment_config');
+      const storedWRequests = localStorage.getItem('tapp_withdrawal_requests_list');
 
       let initialTiers = DEFAULT_VIP_TIERS;
       if (storedTiers) {
@@ -403,6 +462,14 @@ export default function App() {
         localStorage.setItem('tapp_withdrawal_config', JSON.stringify(DEFAULT_WITHDRAWAL_CONFIG));
       }
       setWithdrawalConfig(initialWithdraw);
+
+      if (storedPayment) {
+        setAdminPaymentConfig(JSON.parse(storedPayment));
+      }
+
+      if (storedWRequests) {
+        setWithdrawalRequestsList(JSON.parse(storedWRequests));
+      }
 
       setStatusMessage({
         type: 'success',
@@ -517,6 +584,7 @@ export default function App() {
       price: tier.price,
       status: "pending",
       referenceId: proofCode,
+      proofFile: enteredReferenceFile || "", // Holds proof image representation
       createdAt: todayStr
     };
     
@@ -547,6 +615,7 @@ export default function App() {
     
     setShowVIPDepositModal(false);
     setEnteredReferenceProof('');
+    setEnteredReferenceFile('');
   };
 
   // --- MASTER ACTION: APPROVE DEPOSIT REQUEST (SUPERADMIN) ---
@@ -639,12 +708,18 @@ export default function App() {
   };
 
   // Save states helper (unified to update localStorage and automatically sync to Cloud Firestore if connected as Admin)
-  const saveState = async (updatedTiers: VIPTier[], updatedRate: number, updatedWithdraw: WithdrawalConfig) => {
+  const saveState = async (
+    updatedTiers: VIPTier[], 
+    updatedRate: number, 
+    updatedWithdraw: WithdrawalConfig,
+    updatedPayment: typeof adminPaymentConfig = adminPaymentConfig
+  ) => {
     // 1. Save to local storage as safety backup
     try {
       localStorage.setItem('tapp_vip_tiers', JSON.stringify(updatedTiers));
       localStorage.setItem('tapp_conversion_rate', String(updatedRate));
       localStorage.setItem('tapp_withdrawal_config', JSON.stringify(updatedWithdraw));
+      localStorage.setItem('tapp_admin_payment_config', JSON.stringify(updatedPayment));
     } catch (e) {
       console.error('Failed to save to localStorage', e);
     }
@@ -658,6 +733,7 @@ export default function App() {
           viptiers: updatedTiers,
           conversionRate: updatedRate,
           withdrawalConfig: updatedWithdraw,
+          adminPaymentConfig: updatedPayment,
           updatedAt: new Date().toISOString(),
           updatedBy: auth.currentUser.email || 'Admin User'
         });
@@ -711,6 +787,188 @@ export default function App() {
   const handleUpdateWithdrawal = (updated: WithdrawalConfig) => {
     setWithdrawalConfig(updated);
     saveState(viptiers, conversionRate, updated);
+  };
+
+  // --- CLIENT ACTIONS: SUBMIT WITHDRAWAL REQUEST ---
+  const handleRequestWithdrawalSubmit = async () => {
+    if (withdrawCoinsAmount <= 0) {
+      alert("Por favor establece un monto mayor a cero.");
+      return;
+    }
+    if (withdrawCoinsAmount < 10) {
+      alert("El retiro mínimo admitido en tappmusica es de 10 monedas (Bs 10).");
+      return;
+    }
+    if (withdrawCoinsAmount > userCoins) {
+      alert("No dispones de suficientes monedas (coins) para esta transacción.");
+      return;
+    }
+
+    let targetDetails = '';
+    if (withdrawMethod === 'movil') {
+      if (!userMovilCI.trim() || !userMovilPhone.trim() || !userMovilName.trim()) {
+        alert("Por favor, llena todos los datos de Pago Móvil.");
+        return;
+      }
+      targetDetails = `Banco: ${userMovilBanco} | Tel: ${userMovilPhone} | CI: ${userMovilCI} | Titular: ${userMovilName}`;
+    } else {
+      if (!userUSDTAddress.trim()) {
+        alert("Por favor ingresa tu wallet USDT BEP-20.");
+        return;
+      }
+      targetDetails = `USDT BEP-20: ${userUSDTAddress}`;
+    }
+
+    const feeAmount = parseFloat(((withdrawCoinsAmount * (withdrawalConfig.feePercentage ?? 5)) / 100).toFixed(2));
+    const netAmount = parseFloat((withdrawCoinsAmount - feeAmount).toFixed(2));
+    const equivalentUSD = parseFloat((netAmount / conversionRate).toFixed(2));
+
+    const todayStr = new Date().toISOString();
+    const requestId = "withdraw_" + Math.random().toString(36).substring(2, 9);
+
+    const newRequestPayload = {
+      userId: currentUser ? currentUser.uid : "local-user",
+      username: currentUser ? (currentUser.displayName || currentUser.email || "Usuario Local") : "Usuario Demostración",
+      userEmail: currentUser ? currentUser.email : "invitado@tappmusica.com",
+      method: withdrawMethod === 'movil' ? "Pago Móvil" : "USDT BEP-20",
+      details: targetDetails,
+      coinsRequested: withdrawCoinsAmount,
+      feeCoins: feeAmount,
+      netPayableCoins: netAmount,
+      usdEquivalent: equivalentUSD,
+      status: "pending",
+      createdAt: todayStr
+    };
+
+    // Save locally
+    const updatedRequests = [newRequestPayload, ...withdrawalRequestsList];
+    setWithdrawalRequestsList(updatedRequests);
+    try {
+      localStorage.setItem('tapp_withdrawal_requests_list', JSON.stringify(updatedRequests));
+    } catch (_) {}
+
+    // Synchronize to Firestore
+    if (currentUser) {
+      try {
+        const reqDocRef = doc(db, 'withdrawal_requests', requestId);
+        await setDoc(reqDocRef, newRequestPayload);
+        
+        // Subtract user coins inside Firestore User profile immediately
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        const newBalance = userCoins - withdrawCoinsAmount;
+        await updateDoc(userDocRef, {
+          balance: newBalance
+        });
+        setUserCoins(newBalance);
+
+        setStatusMessage({
+          type: 'success',
+          text: `¡Retiro enviado con éxito! Se reservaron ${withdrawCoinsAmount} monedas.`
+        });
+        setTimeout(() => setStatusMessage(null), 3500);
+      } catch (err: any) {
+        console.error("Firestore withdrawal error:", err);
+        alert("Tu solicitud de retiro fue guardada localmente.");
+      }
+    } else {
+      // Offline simulation deduction
+      const newBalance = userCoins - withdrawCoinsAmount;
+      setUserCoins(newBalance);
+      setStatusMessage({
+        type: 'info',
+        text: `Demo: Solicitud cobrada de balances de prueba (${withdrawCoinsAmount} Coins). Ve a Súper-Admin para procesarla.`
+      });
+      setTimeout(() => setStatusMessage(null), 3500);
+    }
+
+    setShowWithdrawModal(false);
+  };
+
+  // --- ACTIONS: APPROVE WITHDRAWAL REQUEST (SUPERADMIN) ---
+  const handleApproveWithdrawal = async (req: any) => {
+    if (!confirm(`¿Confirmas que ya efectuaste el depósito de Bs ${req.netPayableCoins} (o su equivalente de $${req.usdEquivalent} USDT) a ${req.username}? Haz clic en Aceptar para liquidar este retiro como "Completado".`)) {
+      return;
+    }
+
+    const updated = withdrawalRequestsList.map(r => r.id === req.id || (r.createdAt === req.createdAt && r.userId === req.userId && r.coinsRequested === req.coinsRequested) ? { ...r, status: "approved" } : r);
+    setWithdrawalRequestsList(updated);
+    try {
+      localStorage.setItem('tapp_withdrawal_requests_list', JSON.stringify(updated));
+    } catch (_) {}
+
+    if (currentUser && req.id && !req.id.startsWith("local-user")) {
+      try {
+        const reqDocRef = doc(db, 'withdrawal_requests', req.id);
+        await updateDoc(reqDocRef, { status: "approved" });
+        setStatusMessage({
+          type: 'success',
+          text: `Retiro de ${req.username} aprobado y cerrado como completado en el ledger.`
+        });
+        setTimeout(() => setStatusMessage(null), 3000);
+      } catch (err) {
+        console.error("Firestore approve withdrawal error:", err);
+      }
+    } else {
+      setStatusMessage({
+        type: 'info',
+        text: 'Demo: Retiro simulado como Aprobado con éxito.'
+      });
+      setTimeout(() => setStatusMessage(null), 3000);
+    }
+  };
+
+  // --- ACTIONS: REJECT WITHDRAWAL REQUEST (SUPERADMIN) ---
+  const handleRejectWithdrawal = async (req: any) => {
+    if (!confirm(`¿Estás seguro de RECHAZAR la solicitud de Bs ${req.coinsRequested} de ${req.username}? Las monedas serán devueltas a su balance de cartera inmediatamente.`)) {
+      return;
+    }
+
+    const updated = withdrawalRequestsList.map(r => r.id === req.id || (r.createdAt === req.createdAt && r.userId === req.userId && r.coinsRequested === req.coinsRequested) ? { ...r, status: "rejected" } : r);
+    setWithdrawalRequestsList(updated);
+    try {
+      localStorage.setItem('tapp_withdrawal_requests_list', JSON.stringify(updated));
+    } catch (_) {}
+
+    if (currentUser) {
+      try {
+        // Refund coins to user balance in DB
+        const targetUserDoc = doc(db, 'users', req.userId);
+        const snap = await getDoc(targetUserDoc);
+        let currBalance = req.coinsRequested;
+        if (snap.exists()) {
+          const ud = snap.data();
+          currBalance += (ud.balance || 0);
+        }
+        await updateDoc(targetUserDoc, { balance: currBalance });
+
+        // Update request status in db
+        if (req.id && !req.id.startsWith("local-user")) {
+          const reqDocRef = doc(db, 'withdrawal_requests', req.id);
+          await updateDoc(reqDocRef, { status: "rejected" });
+        }
+        
+        // If the current user is checking their own refunded balance, refresh immediately
+        if (req.userId === currentUser.uid) {
+          setUserCoins(currBalance);
+        }
+
+        setStatusMessage({
+          type: 'info',
+          text: `Retiro rechazado. Monedas reembolsadas a ${req.username}.`
+        });
+        setTimeout(() => setStatusMessage(null), 3000);
+      } catch (err) {
+        console.error("Firestore reject withdrawal error:", err);
+      }
+    } else {
+      // Demo mode refund
+      setUserCoins(prev => prev + req.coinsRequested);
+      setStatusMessage({
+        type: 'info',
+        text: 'Demo: Retiro rechazado y saldo de prueba reembolsado.'
+      });
+      setTimeout(() => setStatusMessage(null), 3000);
+    }
   };
 
   // Reset to original defaults
@@ -988,9 +1246,18 @@ export default function App() {
             <div className="h-10 w-10 bg-gradient-to-tr from-amber-500/20 to-amber-500/10 rounded-xl flex items-center justify-center border border-amber-500/20 text-amber-400">
               <Coins className="h-5 w-5 animate-pulse" />
             </div>
-            <div>
-              <p className="text-[10px] text-slate-400 uppercase font-mono font-bold tracking-wider">Mi Cartera Tapp</p>
-              <h3 className="text-xl font-bold text-white font-mono">{userCoins} Monedas</h3>
+            <div className="flex-1 flex justify-between items-center gap-3">
+              <div>
+                <p className="text-[10px] text-slate-400 uppercase font-mono font-bold tracking-wider">Mi Cartera Tapp</p>
+                <h3 className="text-xl font-bold text-white font-mono">{userCoins} Monedas</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWithdrawModal(true)}
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[10px] px-3 py-1.5 rounded-lg active:scale-95 transition-all uppercase cursor-pointer"
+              >
+                💸 Solicitar Retiro
+              </button>
             </div>
           </div>
           
@@ -1574,120 +1841,395 @@ export default function App() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/5 pb-4">
               <div className="space-y-1">
                 <h3 className="font-display font-bold text-base text-white flex items-center gap-2">
-                  <ShieldCheck className="h-5 w-5 text-purple-400" />
-                  <span>Panel Digital de Súper Administrador</span>
+                  <ShieldCheck className="h-5 w-5 text-purple-405 text-purple-400" />
+                  <span>Panel de Súper Administrador (Kervin Jose)</span>
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Monitorea las solicitudes de registro, depósitos bancarios de Kervin Jose, y autoriza rangos VIP de clientes en tiempo real.
+                  Gestiona depósitos de membresías, procesa transferencias de retiros de usuarios y personaliza las cuentas de recaudación de la plataforma.
                 </p>
               </div>
 
-              {/* Counter Statistics Badges */}
+              {/* Dynamic counters based on sub-tab */}
               <div className="flex flex-wrap gap-2.5 font-mono text-[11px]">
                 <div className="px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg">
-                  <span className="text-slate-500 uppercase">Sin Procesar: </span>
-                  <strong className="text-amber-400 font-bold">{depositRequestsList.filter(r => r.status === 'pending').length}</strong>
+                  <span className="text-slate-500 uppercase">Aprobaciones: </span>
+                  <strong className="text-emerald-400 font-bold">
+                    {depositRequestsList.filter(r => r.status === 'approved').length + withdrawalRequestsList.filter(r => r.status === 'approved').length}
+                  </strong>
                 </div>
-                <div className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                  <span className="text-[#10b981] uppercase">Aprobados: </span>
-                  <strong className="text-emerald-400 font-bold">{depositRequestsList.filter(r => r.status === 'approved').length}</strong>
-                </div>
-                <div className="px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg col-span-3 sm:col-span-1">
-                  <span className="text-slate-500 uppercase">Totales: </span>
-                  <strong className="text-slate-300 font-bold">{depositRequestsList.length}</strong>
+                <div className="px-3 py-1.5 bg-amber-500/10 border border-emerald-500/20 rounded-lg">
+                  <span className="text-amber-400 uppercase">Tareas Pendientes: </span>
+                  <strong className="text-amber-305 font-bold">
+                    {depositRequestsList.filter(r => r.status === 'pending').length + withdrawalRequestsList.filter(r => r.status === 'pending').length}
+                  </strong>
                 </div>
               </div>
             </div>
 
-            {depositRequestsList.length === 0 ? (
-              <div className="p-8 text-center border border-white/5 bg-slate-950/20 rounded-2xl space-y-3">
-                <span className="text-4xl">🧾</span>
-                <p className="text-xs text-slate-400">No se ha registrado ninguna solicitud de depósito de membresía aún.</p>
-                <p className="text-[10px] text-slate-500">Úsala como Cliente en la pestaña superior e ingresa comprobantes de prueba para verlos aquí de inmediato.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto rounded-xl border border-white/5 bg-slate-950/40">
-                <table className="w-full text-xs text-left border-collapse">
-                  <thead>
-                    <tr className="bg-[#0c111e] text-slate-400 uppercase font-mono text-[10px] tracking-wider border-b border-light-slate-900 border-white/5">
-                      <th className="py-3.5 px-4 font-bold">Cliente / Correo</th>
-                      <th className="py-3.5 px-4 font-bold">Membresía</th>
-                      <th className="py-3.5 px-4 font-bold text-right">Precio ($ USD)</th>
-                      <th className="py-3.5 px-4 font-bold">Comprobante de Referencia</th>
-                      <th className="py-3.5 px-4 font-bold">Fecha / Hora</th>
-                      <th className="py-3.5 px-4 font-bold text-center">Estado</th>
-                      <th className="py-3.5 px-4 font-bold text-center">Acciones de Verificación</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {depositRequestsList.map((req, index) => (
-                      <tr key={index} className="hover:bg-white/[0.02] transition-colors">
-                        <td className="py-3 px-4">
-                          <div className="font-semibold text-white">{req.username}</div>
-                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">{req.userEmail}</div>
-                        </td>
-                        <td className="py-3 px-4 font-mono font-bold text-slate-200">
-                          {req.tierName}
-                        </td>
-                        <td className="py-3 px-4 font-mono font-bold text-white text-right">
-                          ${req.price} USD
-                        </td>
-                        <td className="py-3 px-4 text-slate-300 font-mono leading-relaxed select-all">
-                          <code className="bg-slate-950/80 px-2 py-1 rounded border border-white/5 font-bold text-emerald-400">
-                            {req.referenceId}
-                          </code>
-                        </td>
-                        <td className="py-3 px-4 text-slate-400 font-mono text-[10px]">
-                          {new Date(req.createdAt).toLocaleString()}
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          {req.status === 'pending' && (
-                            <span className="px-2 py-0.5 text-[10px] font-bold font-mono rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase">
-                              Pendiente
-                            </span>
-                          )}
-                          {req.status === 'approved' && (
-                            <span className="px-2 py-0.5 text-[10px] font-bold font-mono rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase">
-                              Aprobado
-                            </span>
-                          )}
-                          {req.status === 'rejected' && (
-                            <span className="px-2 py-0.5 text-[10px] font-bold font-mono rounded bg-red-500/10 text-red-400 border border-red-500/20 uppercase">
-                              Rechazado
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4">
-                          {req.status === 'pending' ? (
-                            <div className="flex gap-2 justify-center">
-                              <button
-                                type="button"
-                                onClick={() => handleApproveRequest(req)}
-                                className="bg-emerald-500 hover:bg-emerald-450 text-slate-950 py-1 px-2.5 rounded font-bold uppercase text-[9px] shadow hover:shadow-emerald-500/20 transition-all flex items-center gap-1 cursor-pointer"
-                              >
-                                <CheckCircle className="h-3 w-3 shrink-0" />
-                                Aprobar Pago
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleRejectRequest(req)}
-                                className="bg-red-500/20 hover:bg-red-500 hover:text-white border border-red-500/20 text-red-300 py-1 px-2.5 rounded font-mono uppercase text-[9px] transition-all cursor-pointer"
-                              >
-                                Rechazar
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="text-slate-500 text-center italic font-mono text-[10px]">
-                              Procesado con éxito
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {/* SUPERADMIN VIEW SUB TABS SELECTOR */}
+            <div className="flex flex-wrap gap-2 border-b border-white/5 pb-1">
+              <button
+                type="button"
+                onClick={() => setSuperAdminReqTab('deposits')}
+                className={`px-4 py-2 text-xs font-bold rounded-t-lg transition-all border-b-2 flex items-center gap-1.5 cursor-pointer ${
+                  superAdminReqTab === 'deposits'
+                    ? 'border-emerald-500 text-emerald-400 bg-white/[0.02]'
+                    : 'border-transparent text-slate-400 hover:text-slate-205 hover:bg-white/[0.01]'
+                }`}
+              >
+                📥 Membresías / Depósitos
+                {depositRequestsList.filter(r => r.status === 'pending').length > 0 && (
+                  <span className="bg-amber-500 text-slate-950 text-[9px] px-1.5 py-0.2 rounded-full font-black animate-pulse">
+                    {depositRequestsList.filter(r => r.status === 'pending').length}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSuperAdminReqTab('withdrawals')}
+                className={`px-4 py-2 text-xs font-bold rounded-t-lg transition-all border-b-2 flex items-center gap-1.5 cursor-pointer ${
+                  superAdminReqTab === 'withdrawals'
+                    ? 'border-emerald-500 text-emerald-400 bg-white/[0.02]'
+                    : 'border-transparent text-slate-400 hover:text-slate-205 hover:bg-white/[0.01]'
+                }`}
+              >
+                📤 Retiros / Cobros Clientes
+                {withdrawalRequestsList.filter(r => r.status === 'pending').length > 0 && (
+                  <span className="bg-red-500 text-white text-[9px] px-1.5 py-0.2 rounded-full font-black animate-pulse">
+                    {withdrawalRequestsList.filter(r => r.status === 'pending').length}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSuperAdminReqTab('config_payment')}
+                className={`px-4 py-2 text-xs font-bold rounded-t-lg transition-all border-b-2 flex items-center gap-1.5 cursor-pointer ${
+                  superAdminReqTab === 'config_payment'
+                    ? 'border-purple-500 text-purple-400 bg-white/[0.02]'
+                    : 'border-transparent text-slate-400 hover:text-slate-205 hover:bg-white/[0.01]'
+                }`}
+              >
+                ⚙️ Configurar Tus Cuentas Pago Móvil & USDT
+              </button>
+            </div>
+
+            {/* TAB CONTENT 1: DEPOSITS / UPGRADES LEDGER */}
+            {superAdminReqTab === 'deposits' && (
+              <div className="space-y-4">
+                {depositRequestsList.length === 0 ? (
+                  <div className="p-8 text-center border border-white/5 bg-slate-950/20 rounded-2xl space-y-3">
+                    <span className="text-4xl">🧾</span>
+                    <p className="text-xs text-slate-400">No se ha registrado ninguna solicitud de depósito de membresía aún.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-white/5 bg-slate-950/40">
+                    <table className="w-full text-xs text-left border-collapse">
+                      <thead>
+                        <tr className="bg-[#0c111e] text-slate-400 uppercase font-mono text-[10px] tracking-wider border-b border-white/5">
+                          <th className="py-3.5 px-4 font-bold">Cliente / Correo</th>
+                          <th className="py-3.5 px-4 font-bold">Membresía</th>
+                          <th className="py-3.5 px-4 font-bold text-right">Precio ($ USD)</th>
+                          <th className="py-3.5 px-4 font-bold">Transacción / Captura</th>
+                          <th className="py-3.5 px-4 font-bold">Fecha / Hora</th>
+                          <th className="py-3.5 px-4 font-bold text-center">Estado</th>
+                          <th className="py-3.5 px-4 font-bold text-center">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {depositRequestsList.map((req, index) => (
+                          <tr key={index} className="hover:bg-white/[0.02] transition-colors">
+                            <td className="py-3 px-4">
+                              <div className="font-semibold text-white">{req.username}</div>
+                              <div className="text-[10px] text-slate-400 font-mono mt-0.5">{req.userEmail}</div>
+                            </td>
+                            <td className="py-3 px-4 font-mono font-bold text-slate-205 text-sky-400">
+                              {req.tierName}
+                            </td>
+                            <td className="py-3 px-4 font-mono font-bold text-white text-right">
+                              ${req.price} USD
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2">
+                                <code className="bg-slate-950/80 px-2 py-1 rounded border border-white/5 font-bold text-emerald-450 text-[10px] font-mono">
+                                  {req.referenceId}
+                                </code>
+                                {req.proofFile && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedViewerImage(req.proofFile)}
+                                    className="bg-sky-505/10 bg-sky-500/10 text-sky-400 hover:bg-sky-500 hover:text-slate-950 px-2 py-0.5 rounded text-[9px] font-bold transition-all cursor-pointer flex items-center gap-1 border border-sky-500/20"
+                                  >
+                                    📸 Ver capture
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-slate-400 font-mono text-[10px]">
+                              {new Date(req.createdAt).toLocaleString()}
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              {req.status === 'pending' && (
+                                <span className="px-2 py-0.5 text-[10px] font-bold font-mono rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase">
+                                  Pendiente
+                                </span>
+                              )}
+                              {req.status === 'approved' && (
+                                <span className="px-2 py-0.5 text-[10px] font-bold font-mono rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase">
+                                  Aprobado
+                                </span>
+                              )}
+                              {req.status === 'rejected' && (
+                                <span className="px-2 py-0.5 text-[10px] font-bold font-mono rounded bg-red-500/10 text-red-500 border border-red-500/20 uppercase">
+                                  Rechazado
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
+                              {req.status === 'pending' ? (
+                                <div className="flex gap-1.5 justify-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleApproveRequest(req)}
+                                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 py-1 px-2.5 rounded font-bold uppercase text-[9px] shadow hover:shadow-emerald-500/20 transition-all flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <CheckCircle className="h-3 w-3 shrink-0" />
+                                    Aprobar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRejectRequest(req)}
+                                    className="bg-red-500/20 hover:bg-red-500 hover:text-white border border-red-500/20 text-red-300 py-1 px-2 rounded font-mono uppercase text-[9px] transition-all cursor-pointer"
+                                  >
+                                    Rechazar
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="text-slate-500 text-center italic font-mono text-[9px]">
+                                  Completado
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
+
+            {/* TAB CONTENT 2: WITHDRAWALS REQUESTS LEDGER */}
+            {superAdminReqTab === 'withdrawals' && (
+              <div className="space-y-4">
+                <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/25 flex items-start gap-2.5">
+                  <span className="text-base">💡</span>
+                  <p className="text-xs text-slate-300 leading-normal">
+                    <strong>Información de Retiros de Monedas (Coins):</strong> Los usuarios solicitan retirar monedas. El sistema calcula la comisión configurada y te muestra un <strong>Monto Neto a Depositar</strong> en Bolívares Soberanos (Bs) y el equivalente real en <strong>Dólares (USDT)</strong> basado en tu tasa. Tú realizas el Pago Móvil o depósito USDT y luego haces clic en "Confirmar Pago" para actualizar sus carteras en vivo.
+                  </p>
+                </div>
+
+                {withdrawalRequestsList.length === 0 ? (
+                  <div className="p-8 text-center border border-white/5 bg-slate-950/20 rounded-2xl space-y-3">
+                    <span className="text-4xl font-black">💸</span>
+                    <p className="text-xs text-slate-400">Excelente, no tienes ninguna solicitud de retiro pendiente hoy.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-white/5 bg-slate-950/40">
+                    <table className="w-full text-xs text-left border-collapse">
+                      <thead>
+                        <tr className="bg-[#0c111e] text-slate-400 uppercase font-mono text-[10px] tracking-wider border-b border-white/5">
+                          <th className="py-3.5 px-4 font-bold">Cliente / Datos de Pago</th>
+                          <th className="py-3.5 px-4 font-bold text-center">Método</th>
+                          <th className="py-3.5 px-4 font-bold text-right">Coins Retirados</th>
+                          <th className="py-3.5 px-4 font-bold text-right font-mono text-[#eab308]">Retención Fee</th>
+                          <th className="py-3.5 px-4 font-bold text-right text-emerald-400">Neto Bs a Traspasar</th>
+                          <th className="py-3.5 px-4 font-bold text-right text-sky-400">Equivalente USD</th>
+                          <th className="py-3.5 px-4 font-bold">Fecha / Hora</th>
+                          <th className="py-3.5 px-4 font-bold text-center">Estado</th>
+                          <th className="py-3.5 px-4 font-bold text-center">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {withdrawalRequestsList.map((req, index) => (
+                          <tr key={index} className="hover:bg-white/[0.02] transition-colors">
+                            <td className="py-3.5 px-4 max-w-xs">
+                              <div className="font-semibold text-white">{req.username}</div>
+                              <div className="text-[10px] text-slate-400 font-mono mt-0.5">{req.userEmail}</div>
+                              <div className="mt-1 p-1 bg-black/40 rounded border border-white/5 font-mono text-[9px] text-[#22d3ee] break-words">
+                                {req.details}
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <span className={`px-2 py-0.5 text-[9px] font-bold rounded uppercase ${
+                                req.method === "Pago Móvil" ? "bg-sky-500/10 text-sky-300 border border-sky-500/20" : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
+                              }`}>
+                                {req.method}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 font-mono font-bold text-slate-350 text-right">
+                              {req.coinsRequested} Coins
+                            </td>
+                            <td className="py-3.5 px-4 font-mono font-bold text-[#eab308] text-right">
+                              -{req.feeCoins} Coins ({withdrawalConfig.feePercentage}%)
+                            </td>
+                            <td className="py-3.5 px-4 font-mono font-bold text-emerald-400 text-right text-sm">
+                              Bs {req.netPayableCoins}
+                            </td>
+                            <td className="py-3.5 px-4 font-mono font-bold text-sky-450 text-sky-400 text-right">
+                              ${req.usdEquivalent} USDT
+                            </td>
+                            <td className="py-3.5 px-4 text-slate-400 font-mono text-[10px]">
+                              {new Date(req.createdAt).toLocaleString()}
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              {req.status === 'pending' && (
+                                <span className="px-2 py-0.5 text-[10px] font-bold font-mono rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase">
+                                  Pendiente
+                                </span>
+                              )}
+                              {req.status === 'approved' && (
+                                <span className="px-2 py-0.5 text-[10px] font-bold font-mono rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase">
+                                  Completado
+                                </span>
+                              )}
+                              {req.status === 'rejected' && (
+                                <span className="px-2 py-0.5 text-[10px] font-bold font-mono rounded bg-red-500/15 text-red-400 border border-red-500/20 uppercase">
+                                  Rechazado
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4">
+                              {req.status === 'pending' ? (
+                                <div className="flex gap-1.5 justify-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleApproveWithdrawal(req)}
+                                    className="bg-[#10b981] hover:bg-[#059669] text-white py-1 px-2.5 rounded font-black uppercase text-[9px] shadow hover:shadow-emerald-500/25 transition-all flex items-center gap-1 cursor-pointer"
+                                  >
+                                    Confirmar Pago ✓
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRejectWithdrawal(req)}
+                                    className="bg-red-500/20 hover:bg-red-500 hover:text-white border border-red-500/20 text-red-300 py-1 px-2 rounded font-mono uppercase text-[9px] transition-all cursor-pointer"
+                                  >
+                                    Rechazar
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="text-slate-500 text-center italic font-mono text-[10px]">
+                                  Cerrado
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB CONTENT 3: CONFIGURE PAYMENTS DETAILS (PAGO MOVIL & USDT) */}
+            {superAdminReqTab === 'config_payment' && (
+              <form 
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  // Save config locally & cloud sync
+                  saveState(viptiers, conversionRate, withdrawalConfig, adminPaymentConfig);
+                  setStatusMessage({
+                    type: 'success',
+                    text: '¡Cuentas de depósito y Pago Móvil actualizadas de inmediato!'
+                  });
+                  setTimeout(() => setStatusMessage(null), 3500);
+                }}
+                className="space-y-5 bg-[#050812] p-5 rounded-xl border border-white/5"
+              >
+                <div className="border-b border-white/5 pb-2">
+                  <h4 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                    <span>🇻🇪 Configuración Cuenta Pago Móvil (Venezuela)</span>
+                  </h4>
+                  <p className="text-[11px] text-slate-400">Esta información se mostrará de inmediato a todos los clientes que soliciten subir de VIP o registrar transferencias en Bs.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase font-mono font-bold text-slate-400 tracking-wider">Nombre del Banco:</label>
+                    <input
+                      type="text"
+                      required
+                      value={adminPaymentConfig.pagoMovilBanco}
+                      onChange={(e) => setAdminPaymentConfig({...adminPaymentConfig, pagoMovilBanco: e.target.value})}
+                      placeholder="Ej: Banco de Venezuela"
+                      className="w-full bg-[#020409] border border-white/10 rounded-lg py-2 px-3 text-xs text-slate-205 focus:border-emerald-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase font-mono font-bold text-slate-400 tracking-wider">Cédula de Identidad (CI / RIF):</label>
+                    <input
+                      type="text"
+                      required
+                      value={adminPaymentConfig.pagoMovilCI}
+                      onChange={(e) => setAdminPaymentConfig({...adminPaymentConfig, pagoMovilCI: e.target.value})}
+                      placeholder="Ej: V-25123456"
+                      className="w-full bg-[#020409] border border-white/10 rounded-lg py-2 px-3 text-xs text-slate-205 focus:border-emerald-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase font-mono font-bold text-slate-400 tracking-wider">Teléfono Pago Móvil:</label>
+                    <input
+                      type="text"
+                      required
+                      value={adminPaymentConfig.pagoMovilTelefono}
+                      onChange={(e) => setAdminPaymentConfig({...adminPaymentConfig, pagoMovilTelefono: e.target.value})}
+                      placeholder="Ej: 0412-1234567"
+                      className="w-full bg-[#020409] border border-white/10 rounded-lg py-2 px-3 text-xs text-slate-205 focus:border-emerald-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase font-mono font-bold text-slate-400 tracking-wider">Nombre Completo del Titular:</label>
+                    <input
+                      type="text"
+                      required
+                      value={adminPaymentConfig.pagoMovilName}
+                      onChange={(e) => setAdminPaymentConfig({...adminPaymentConfig, pagoMovilName: e.target.value})}
+                      placeholder="Kervin Jose"
+                      className="w-full bg-[#020409] border border-white/10 rounded-lg py-2 px-3 text-xs text-slate-205 focus:border-emerald-500 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="border-b border-white/5 pb-2 pt-2">
+                  <h4 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                    <span>🟢 Dirección Criptográfica Binance USDT (Red BEP-20)</span>
+                  </h4>
+                  <p className="text-[11px] text-slate-405 text-slate-400">Dirección de Wallet para la recaudación por BSC (Binance Smart Chain). Evita errores para que los fondos lleguen correctamente a tu cuenta.</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] uppercase font-mono font-bold text-slate-400 tracking-wider">USDT BSC Wallet Address (BEP-20):</label>
+                  <input
+                    type="text"
+                    required
+                    value={adminPaymentConfig.usdtAddress}
+                    onChange={(e) => setAdminPaymentConfig({...adminPaymentConfig, usdtAddress: e.target.value})}
+                    placeholder="Ej: 0x98f98...802"
+                    className="w-full bg-[#020409] border border-white/10 rounded-lg py-2 px-3 text-xs text-slate-205 font-mono text-emerald-400 focus:border-emerald-500 outline-none transition-all"
+                  />
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="submit"
+                    className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white text-xs font-bold py-2.5 px-6 rounded-lg shadow-lg shadow-purple-500/10 cursor-pointer transition-all flex items-center gap-1"
+                  >
+                     Guardar Cuentas de Recaudación ✔
+                  </button>
+                </div>
+              </form>
+            )}
+
           </div>
         )}
 
@@ -1749,10 +2291,196 @@ export default function App() {
         </div>
       )}
 
+      {/* --- CLIENT WITHDRAWAL REQUEST OVERLAY MODAL --- */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 bg-[#04060b]/95 backdrop-blur-sm flex items-center justify-center p-4 z-[100]" id="client-withdrawal-modal">
+          <div className="bg-[#0b0f19]/95 border border-white/10 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl animate-fade-in text-left overflow-y-auto max-h-[90vh]">
+            <div className="flex justify-between items-center border-b border-white/5 pb-3">
+              <div className="flex items-center gap-2">
+                <Coins className="h-5 w-5 text-amber-500 animate-pulse" />
+                <h3 className="font-display font-bold text-sm text-white">Solicitar Retiro / Payout</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWithdrawModal(false)}
+                className="text-xs text-slate-400 hover:text-white"
+              >
+                ✕ Cerrar
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="p-3 bg-slate-950/60 rounded-xl border border-white/5 flex items-start gap-2.5">
+                <span className="text-sm">🏦</span>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  <strong>Retiros TAPPMUSIC:</strong> Las monedas cobradas son equivalentes en Bolívares soberanos (1 Coin = 1 Bs). Súper-Admin Kervin Jose procesará la liquidación manualmente dentro de tu método de preferencia.
+                </p>
+              </div>
+
+              {/* Step 1: Input Amount */}
+              <div className="space-y-1.5Packed">
+                <div className="flex justify-between text-[11px] font-mono">
+                  <span className="text-slate-400">¿Cuánto deseas retirar? (Mínimo 10)</span>
+                  <span className="text-amber-400 font-bold">Disponible: {userCoins} Coins</span>
+                </div>
+                <div className="flex items-center gap-2 bg-slate-950 border border-white/10 rounded-xl p-2.5">
+                  <input
+                    type="number"
+                    min="10"
+                    step="1"
+                    value={withdrawCoinsAmount}
+                    onChange={(e) => setWithdrawCoinsAmount(Math.max(0, Number(e.target.value)))}
+                    className="flex-1 bg-transparent border-none text-white text-base font-mono font-bold focus:outline-none focus:ring-0"
+                  />
+                  <span className="text-xs font-mono font-bold text-slate-500 uppercase shrink-0">Coins</span>
+                </div>
+              </div>
+
+              {/* Live Calculations Pane */}
+              <div className="bg-[#050812] rounded-xl p-3.5 border border-[#10b981]/20 space-y-2.5 font-mono text-[11px]">
+                <div className="flex justify-between text-slate-400">
+                  <span>Monto de Retiro Solicitado:</span>
+                  <span className="text-slate-200">{withdrawCoinsAmount} Coins</span>
+                </div>
+                <div className="flex justify-between text-red-400">
+                  <span>Comisión del Sistema ({withdrawalConfig.feePercentage ?? 5}%):</span>
+                  <span>-{(withdrawCoinsAmount * (withdrawalConfig.feePercentage ?? 5) / 100).toFixed(2)} Coins</span>
+                </div>
+                <div className="border-t border-white/5 pt-2 flex justify-between font-bold text-sm">
+                  <span className="text-slate-300">Neto Bs a Recibir:</span>
+                  <span className="text-[#10b981]">Bs {Math.max(0, withdrawCoinsAmount - (withdrawCoinsAmount * (withdrawalConfig.feePercentage ?? 5) / 100)).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-[10px] text-sky-400">
+                  <span>Equivalente USDT Binance:</span>
+                  <span>${Math.max(0, (withdrawCoinsAmount - (withdrawCoinsAmount * (withdrawalConfig.feePercentage ?? 5) / 100)) / conversionRate).toFixed(2)} USDT</span>
+                </div>
+              </div>
+
+              {/* Step 2: Choose Payout Mode */}
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-mono text-slate-400">Seleccionar Método de Pago</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setWithdrawMethod('movil')}
+                    className={`p-2.5 rounded-xl border text-center font-bold flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all ${
+                      withdrawMethod === 'movil'
+                        ? 'bg-sky-500/10 border-sky-500/40 text-sky-400'
+                        : 'bg-slate-950 border-white/5 text-slate-400 hover:text-slate-200 hover:border-white/10'
+                    }`}
+                  >
+                    <span>🇻🇪 Pago Móvil</span>
+                    <span className="text-[9px] opacity-60 font-mono font-normal">Soberanos Bs</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWithdrawMethod('usdt')}
+                    className={`p-2.5 rounded-xl border text-center font-bold flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all ${
+                      withdrawMethod === 'usdt'
+                        ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400'
+                        : 'bg-slate-950 border-white/5 text-slate-400 hover:text-slate-200 hover:border-white/10'
+                    }`}
+                  >
+                    <span>🟢 Binance USDT</span>
+                    <span className="text-[9px] opacity-60 font-mono font-normal">Red BEP-20</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Step 3: Fields based on choice */}
+              {withdrawMethod === 'movil' ? (
+                <div className="space-y-3 bg-black/40 p-3.5 rounded-xl border border-white/5 animate-fade-in">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-mono uppercase text-slate-400 font-black">Banco Receptor:</label>
+                    <select
+                      value={userMovilBanco}
+                      onChange={(e) => setUserMovilBanco(e.target.value)}
+                      className="w-full bg-slate-950 border border-white/10 rounded-lg py-1.5 px-2.5 text-xs text-white focus:outline-none focus:border-sky-500"
+                    >
+                      <option value="Banco de Venezuela (0102)">Banco de Venezuela (0102)</option>
+                      <option value="Banesco (0134)">Banesco (0134)</option>
+                      <option value="Banco Mercantil (0105)">Banco Mercantil (0105)</option>
+                      <option value="BBVA Provincial (0108)">BBVA Provincial (0108)</option>
+                      <option value="Banco Nacional de Crédito BNC (0191)">BNC Bancos (0191)</option>
+                      <option value="Bancaribe (0114)">Bancaribe (0114)</option>
+                      <option value="Banco Bicentenario (0175)">Banco Bicentenario (0175)</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-mono uppercase text-slate-400 font-black">Cédula de Identidad:</label>
+                      <input
+                        type="text"
+                        required
+                        value={userMovilCI}
+                        onChange={(e) => setUserMovilCI(e.target.value)}
+                        placeholder="Ej: V-26789123"
+                        className="w-full bg-slate-950 border border-white/10 rounded-lg py-1.5 px-2.5 text-xs text-white focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-mono uppercase text-slate-400 font-black">Teléfono Pago Móvil:</label>
+                      <input
+                        type="text"
+                        required
+                        value={userMovilPhone}
+                        onChange={(e) => setUserMovilPhone(e.target.value)}
+                        placeholder="Ej: 0414-1234567"
+                        className="w-full bg-slate-950 border border-white/10 rounded-lg py-1.5 px-2.5 text-xs text-white focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-mono uppercase text-slate-400 font-black">Titular de la Cuenta:</label>
+                    <input
+                      type="text"
+                      required
+                      value={userMovilName}
+                      onChange={(e) => setUserMovilName(e.target.value)}
+                      placeholder="Ej: Juan Perez"
+                      className="w-full bg-slate-950 border border-white/10 rounded-lg py-1.5 px-2.5 text-xs text-white focus:outline-none"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2 bg-black/40 p-3.5 rounded-xl border border-white/5 animate-fade-in">
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[9px] font-mono uppercase text-slate-400 font-black">USDT Wallet (Red BEP-20 Smart Chain):</label>
+                      <span className="text-[8px] text-emerald-400 uppercase font-mono font-bold animate-pulse">¡Solo BEP-20!</span>
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={userUSDTAddress}
+                      onChange={(e) => setUserUSDTAddress(e.target.value)}
+                      placeholder="Ej: 0x71C...9547"
+                      className="w-full bg-slate-950 border border-white/10 rounded-lg py-1.5 px-2.5 text-xs font-mono text-emerald-400 focus:outline-none focus:border-emerald-500"
+                    />
+                    <p className="text-[9px] text-slate-500 leading-normal mt-1">
+                      Asegúrate de ingresar una wallet válida de Binance Smart Chain (BSC). Enviar a otra dirección resultará en pérdida irreversible de tus fondos.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Submission Button */}
+              <button
+                type="button"
+                onClick={handleRequestWithdrawalSubmit}
+                className="w-full bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-350 text-slate-950 font-black text-xs py-3 rounded-xl transition-all shadow-lg shadow-amber-500/10 tracking-wide uppercase cursor-pointer text-center"
+              >
+                ✓ Enviar Solicitud de Retiro
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* --- VIP UPGRADE TRANSFER STATUS MODAL --- */}
       {showVIPDepositModal && targetDepositTier && (
         <div className="fixed inset-0 bg-[#04060b]/95 backdrop-blur-sm flex items-center justify-center p-4 z-[100]" id="vip-upgrade-invoice-modal">
-          <div className="bg-[#0b0f19]/95 border border-white/10 rounded-3xl p-6 max-w-md w-full space-y-5 shadow-2xl animate-fade-in text-left">
+          <div className="bg-[#0b0f19]/95 border border-white/10 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl animate-fade-in text-left overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center border-b border-white/5 pb-3">
               <div className="flex items-center gap-2">
                 <Award className="h-5 w-5 text-emerald-400" />
@@ -1763,6 +2491,7 @@ export default function App() {
                 onClick={() => {
                   setShowVIPDepositModal(false);
                   setEnteredReferenceProof('');
+                  setEnteredReferenceFile('');
                 }}
                 className="text-xs text-slate-400 hover:text-white"
               >
@@ -1770,31 +2499,125 @@ export default function App() {
               </button>
             </div>
 
-            <div className="space-y-4">
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Para activar el rango <strong className="text-emerald-400">{targetDepositTier.name}</strong>, realiza la transferencia o depósito de <strong className="text-white">${targetDepositTier.price} USD</strong> y adjunta el número o comprobante de tu transacción a continuación.
+            <div className="space-y-4 text-xs">
+              <p className="text-slate-350 leading-relaxed">
+                Para activar tu rango <strong className="text-[#10b981]">{targetDepositTier.name}</strong>, realiza una transferencia de <strong className="text-white">${targetDepositTier.price} USD</strong> usando cualquiera de las siguientes cuentas de recaudación de tappmusica:
               </p>
 
-              {/* Informative Invoice details */}
-              <div className="bg-[#04070e] p-4 rounded-xl border border-white/5 space-y-2.5 font-mono text-[11px]">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Membresía Seleccionada:</span>
-                  <span className="text-slate-200">{targetDepositTier.name}</span>
+              {/* PAYMENT INSTRUCTIONS CONTAINER */}
+              <div className="bg-[#050914] p-3.5 rounded-xl border border-white/5 space-y-3 font-mono text-[11px]">
+                <div className="p-2.5 bg-white/[0.02] border border-white/5 rounded-lg space-y-2">
+                  <div className="text-white font-bold border-b border-white/5 pb-1 select-none flex items-center justify-between">
+                    <span>🇻🇪 Opción Bs (Pago Móvil)</span>
+                    <span className="text-[8px] bg-sky-500/10 text-sky-400 px-1.5 py-0.2 rounded font-normal">Bs 1:1</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 text-[10px]">Banco:</span>
+                    <span className="text-slate-200 text-[10px]">{adminPaymentConfig.pagoMovilBanco}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 text-[10px]">Teléfono:</span>
+                    <span className="text-slate-200 select-all font-bold text-sky-200 text-[10px]">{adminPaymentConfig.pagoMovilTelefono}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 text-[10px]">CI / RIF:</span>
+                    <span className="text-slate-200 select-all text-[10px]">{adminPaymentConfig.pagoMovilCI}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 text-[10px]">Titular:</span>
+                    <span className="text-slate-200 text-[10px]">{adminPaymentConfig.pagoMovilName}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Valor de Actividad:</span>
-                  <span className="text-emerald-400 font-bold">${targetDepositTier.price} USD</span>
+
+                <div className="p-2.5 bg-white/[0.02] border border-white/5 rounded-lg space-y-2">
+                  <div className="text-white font-bold border-b border-white/5 pb-1 select-none flex items-center justify-between">
+                    <span>🟢 Opción USDT BEP-20 (Binance)</span>
+                    <span className="text-[8px] bg-emerald-500/15 text-emerald-400 px-1.5 py-0.2 rounded font-normal">BSC Network</span>
+                  </div>
+                  <span className="text-slate-500 text-[10px]">Dirección de depósito (BSC):</span>
+                  <div className="flex gap-1 items-center bg-[#02050b] p-1.5 rounded border border-white/5">
+                    <span className="text-slate-200 truncate select-all font-bold text-[9px] flex-1">{adminPaymentConfig.usdtAddress}</span>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(adminPaymentConfig.usdtAddress);
+                        alert("¡Dirección USDT Copiada!");
+                      }}
+                      className="text-[9px] bg-emerald-500 text-slate-950 font-bold px-2 py-0.5 rounded cursor-pointer hover:bg-emerald-400 transition-all shrink-0"
+                    >
+                      Copiar
+                    </button>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Multiplicador Coins:</span>
-                  <span className="text-amber-400">+{Math.floor(targetDepositTier.price * conversionRate)} Monedas</span>
+              </div>
+
+              {/* DRAG AND DROP CAPTURE COMPONENT */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-mono font-bold tracking-wider text-slate-400 block">
+                  Captura de pantalla o comprobante de depósito:
+                </label>
+                
+                <div 
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => setEnteredReferenceFile(reader.result as string);
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  onClick={() => document.getElementById('vip-capture-input')?.click()}
+                  className={`border-2 border-dashed rounded-xl p-3.5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-1.5 ${
+                    isDragging 
+                      ? 'border-emerald-400 bg-emerald-500/5' 
+                      : enteredReferenceFile 
+                      ? 'border-emerald-500/30 bg-[#040810]/50' 
+                      : 'border-white/10 hover:border-white/20 bg-[#04060a]/40'
+                  }`}
+                >
+                  <input 
+                    type="file" 
+                    id="vip-capture-input"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => setEnteredReferenceFile(reader.result as string);
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  
+                  {enteredReferenceFile ? (
+                    <div className="space-y-1.5 w-full flex flex-col items-center">
+                      <img 
+                        src={enteredReferenceFile} 
+                        alt="Screenshot Preview" 
+                        className="max-h-24 max-w-full rounded border border-white/10 shadow-sm object-contain"
+                        referrerPolicy="no-referrer"
+                      />
+                      <span className="text-[9px] font-mono text-emerald-400">✓ Comprobante visual cargado. Toca para cambiar.</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-1 py-1">
+                      <div className="text-lg">📸</div>
+                      <p className="text-[11px] font-sans text-slate-350">Arrastra tu captura o <strong className="text-sky-450 underline">haz clic para elegir</strong></p>
+                      <p className="text-[9px] text-slate-500">PNG, JPG o captura móvil</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Input for proof */}
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <label className="text-[10px] uppercase font-mono font-bold tracking-wider text-slate-400 block">
-                  Ingresa Referencia o Comprobante de Depósito:
+                  Número de Referencia de Transacción:
                 </label>
                 <input
                   type="text"
@@ -1802,12 +2625,12 @@ export default function App() {
                   value={enteredReferenceProof}
                   onChange={(e) => setEnteredReferenceProof(e.target.value)}
                   placeholder="Ej: TRANS-98302-COCO"
-                  className="w-full bg-[#04060a] border border-white/10 rounded-lg py-2 px-3 text-xs text-slate-200 placeholder-slate-650 font-mono focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all"
+                  className="w-full bg-[#04060a] border border-white/10 rounded-lg py-2 px-3 text-xs text-slate-200 placeholder-slate-650 font-mono focus:border-emerald-500 focus:ring-1 focus:ring-emerald-550 outline-none transition-all"
                 />
               </div>
 
-              <div className="bg-emerald-500/5 p-3 rounded-lg border border-emerald-500/10 text-[10px] text-slate-400 leading-normal">
-                ⚠️ Una vez enviado, podrás revisar e inspeccionar de inmediato esta solicitud para su aprobación o rechazo en la pestaña <strong className="text-purple-400">"Súper-Admin"</strong> del panel digital.
+              <div className="bg-emerald-500/5 p-2.5 rounded-lg border border-emerald-500/10 text-[9px] text-slate-400 leading-normal">
+                ⚠️ Una vez enviado, Kervin Jose revisará de inmediato tu comprobante y referencia visual en el módulo <strong className="text-purple-400">"Súper-Admin"</strong> para activar tu rango VIP.
               </div>
             </div>
 
@@ -1817,6 +2640,7 @@ export default function App() {
                 onClick={() => {
                   setShowVIPDepositModal(false);
                   setEnteredReferenceProof('');
+                  setEnteredReferenceFile('');
                 }}
                 className="flex-1 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-400 text-xs py-2 rounded-lg transition-all"
               >
@@ -1824,8 +2648,14 @@ export default function App() {
               </button>
               <button
                 type="button"
-                onClick={() => handleRequestVIPTier(targetDepositTier, enteredReferenceProof)}
-                className="flex-1 bg-gradient-to-r from-emerald-500 to-sky-500 hover:from-emerald-400 hover:to-sky-400 text-white font-bold text-xs py-2 rounded-lg transition-all cursor-pointer"
+                onClick={() => {
+                  if (!enteredReferenceProof.trim()) {
+                    alert('Por favor especifica un número de referencia para verificar el pago.');
+                    return;
+                  }
+                  handleRequestVIPTier(targetDepositTier, enteredReferenceProof);
+                }}
+                className="flex-1 bg-gradient-to-r from-emerald-500 to-sky-500 hover:from-emerald-400 hover:to-sky-450 text-white font-bold text-xs py-2 rounded-lg transition-all cursor-pointer"
               >
                 Enviar Solicitud
               </button>
@@ -1993,6 +2823,41 @@ export default function App() {
                   Corregir apiKey ⚙️
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- HIGH RESOLUTION CAPTURE PROOF PREVIEW LIGHTBOX MODAL --- */}
+      {selectedViewerImage && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 z-[200]" id="transaction-proof-lightbox">
+          <div className="max-w-lg w-full bg-[#0a0f1d] border border-white/10 rounded-2xl overflow-hidden shadow-2xl relative animate-scale-up flex flex-col">
+            <div className="p-4 border-b border-white/5 flex justify-between items-center bg-[#070b15]">
+              <h4 className="font-display font-bold text-xs text-slate-200">📸 Comprobante de Transferencia Adjuntado</h4>
+              <button
+                type="button"
+                onClick={() => setSelectedViewerImage(null)}
+                className="text-slate-400 hover:text-white font-mono text-xs bg-slate-900 border border-slate-850 h-6 w-6 rounded-full flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-5 flex items-center justify-center bg-black/50 min-h-[250px] max-h-[60vh] overflow-y-auto">
+              <img
+                src={selectedViewerImage}
+                alt="High-Res Payment Evidence"
+                className="max-h-[50vh] max-w-full rounded border border-white/5 shadow-md object-contain"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+            <div className="p-4.5 border-t border-white/5 bg-[#070b15] flex gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedViewerImage(null)}
+                className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-350 text-xs py-2 rounded-lg transition-all font-bold"
+              >
+                Cerrar Vista
+              </button>
             </div>
           </div>
         </div>
