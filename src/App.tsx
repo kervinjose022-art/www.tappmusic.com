@@ -1521,7 +1521,42 @@ export default function App() {
                     ></iframe>
 
                     {/* Timer progress load indicator bar */}
-                    <div className="absolute bottom-0 left-0 h-1.5 bg-emerald-500 transition-all duration-1000" style={{ width: `${(25 - videoTimer) * 4}%` }}></div>
+                    <div className="absolute bottom-0 left-0 h-1.5 bg-gradient-to-r from-emerald-500 to-sky-500 transition-all duration-1000" style={{ width: `${(25 - videoTimer) * 4}%` }}></div>
+                  </div>
+
+                  {/* HIGH-FIDELITY AUDIOVISUAL MOTIVATIONAL DETAIL ("FRASES", "TEMÁTICAS" & SYNCED EQUALIZER) */}
+                  <div className="p-4 rounded-xl bg-slate-950/70 border border-emerald-500/20 space-y-3.5 animate-fade-in shadow-inner">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-emerald-400 font-mono font-bold uppercase tracking-wider bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20 shadow-sm flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        TEMÁTICA: {REEL_MUSIC_TASKS[selectedReelIdx].category}
+                      </span>
+                      <span className="text-slate-400 text-[10px] font-mono flex items-center gap-1 bg-white/[0.03] px-2 py-0.5 rounded border border-white/5">
+                        <Disc className="h-3 w-3 animate-spin text-emerald-400" style={{ animationDuration: '4s' }} />
+                        Sincronización Premium
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-1.5 relative pl-3.5 border-l-2 border-emerald-500/40">
+                      <h4 className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest leading-none">Frase Transformadora:</h4>
+                      <p className="text-sm font-semibold text-white leading-relaxed italic pr-1 select-none">
+                        "{REEL_MUSIC_TASKS[selectedReelIdx].quote}"
+                      </p>
+                    </div>
+
+                    {/* Dynamic Equalizer Bar for deep immersive audio visual feel */}
+                    <div className="flex items-center justify-between pt-2.5 border-t border-white/5 text-[11px] font-mono text-slate-400">
+                      <span className="flex items-center gap-1">
+                        🔊 Escuchando pista en segundo plano...
+                      </span>
+                      <div className="flex items-end gap-1 h-3.5 px-1 bg-[#04060a] rounded border border-white/5 select-none shrink-0">
+                        <div className="w-[3px] bg-emerald-400 rounded-t animate-bounce" style={{ height: '50%', animationDelay: '0.1s', animationDuration: '0.5s' }}></div>
+                        <div className="w-[3px] bg-cyan-400 rounded-t animate-bounce" style={{ height: '90%', animationDelay: '0.3s', animationDuration: '0.3s' }}></div>
+                        <div className="w-[3px] bg-emerald-400 rounded-t animate-bounce" style={{ height: '30%', animationDelay: '0.2s', animationDuration: '0.7s' }}></div>
+                        <div className="w-[3px] bg-sky-450 rounded-t animate-bounce" style={{ height: '75%', animationDelay: '0.4s', animationDuration: '0.4s' }}></div>
+                        <div className="w-[3px] bg-emerald-400 rounded-t animate-bounce" style={{ height: '45%', animationDelay: '0.15s', animationDuration: '0.6s' }}></div>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="flex justify-between items-center pt-1.5 text-xs">
