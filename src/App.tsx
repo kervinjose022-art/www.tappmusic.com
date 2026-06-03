@@ -100,25 +100,25 @@ export default function App() {
       title: "Mente de Millonario - Sabiduría Financiera",
       quote: "No te enfoques en el dinero, enfócate en el valor que entregas al mundo y las monedas vendrán solas.",
       category: "MOTIVACIÓN",
-      videoUrl: "https://www.youtube.com/embed/5qap5aO4i9A"
+      videoUrl: "https://www.youtube.com/embed/hHW1oY26kxQ"
     },
     {
       title: "Jesús en mi Corazón - Reflexión de Fe",
       quote: "La fe no hace que las cosas sean fáciles, hace que las cosas sean perfectamente posibles.",
       category: "CREENCIAS",
-      videoUrl: "https://www.youtube.com/embed/tntOCGkgt98"
+      videoUrl: "https://www.youtube.com/embed/MCkTebktHv8"
     },
     {
       title: "Éxito Inquebrantable - Fuerza Emprendedora",
       quote: "El único fracaso real es dejar de intentarlo. Cada caída es un paso más hacia tu membresía dorada.",
       category: "EMPRENDER",
-      videoUrl: "https://www.youtube.com/embed/jfKfPfyJRdk"
+      videoUrl: "https://www.youtube.com/embed/n61ULEU7CO0"
     },
     {
       title: "Disciplina Metódica - Hábitos Productivos",
       quote: "La disciplina silenciosa diaria es el secreto mejor guardado de los súper administradores de vida.",
       category: "PRODUCTIVIDAD",
-      videoUrl: "https://www.youtube.com/embed/gWyc9w0K_e0"
+      videoUrl: "https://www.youtube.com/embed/DWcJYXZfrT0"
     }
   ];
 
